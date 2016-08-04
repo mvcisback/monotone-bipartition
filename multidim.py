@@ -1,6 +1,8 @@
 """Implements muli-dimensional threshold discovery via binary search."""
 from collections import namedtuple, deque
+from itertools import chain
 
+import svgwrite
 from numpy import array
 
 Rec = namedtuple("Rec", "bot top")
@@ -53,3 +55,21 @@ def multidim_search(rec: Rec, is_member) -> [(set(Rec), set(Rec))]:
         queue.extendleft(incomparable(mid, rec))
 
         yield bad_approx, good_approx
+
+
+def draw_rec(dwg, r:Rec, is_member:bool):
+    """TODO: handle different orientations."""
+    bot = tuple(map(int, r.bot))
+    dim = tuple(map(int, r.top - r.bot))
+    color = "red" if is_member else "green"
+    return dwg.rect(bot, dim, fill=color)
+
+
+def draw_domain(dwg, r:Rec, good:set(Rec), bad:set(Rec)):
+    width, height = tuple(map(int, r.top - r.bot))
+    dwg = svgwrite.Drawing(width=width, height=height)
+    good_recs = (draw_rec(dwg, r, True) for r in good)
+    bad_recs = (draw_rec(dwg, r, False) for r in bad)
+    for svg_rec in chain(good_recs, bad_recs):
+        dwg.add(svg_rec)
+    return dwg
