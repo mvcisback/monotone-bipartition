@@ -3,8 +3,8 @@ from collections import namedtuple, deque
 from itertools import chain
 from pathlib import Path
 
-import svgwrite
 from numpy import array
+import svgwrite
 import numpy as np
 import funcy as fn
 
@@ -101,6 +101,11 @@ def main():
 
     f = lambda x: x[1] > 0
     multidim_search_and_draw(R, f, 100, "foo3.svg")
+
+    f = lambda x: (x@n > 0 and x[0] > 0) or (x@n > -0.2 and x[0] < 0)
+    multidim_search_and_draw(R, f, 100, "foo4.svg")
+
+        
 
 if __name__ == "__main__":
     main()
