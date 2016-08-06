@@ -1,11 +1,11 @@
 """Implements muli-dimensional threshold discovery via binary search."""
 from collections import namedtuple, deque
-from itertools import chain
+from itertools import chain, combinations
 from pathlib import Path
 
+import numpy as np
 from numpy import array
 import svgwrite
-import numpy as np
 import funcy as fn
 
 Rec = namedtuple("Rec", "bot top")
@@ -13,7 +13,7 @@ Rec = namedtuple("Rec", "bot top")
 
 def binsearch(r: Rec, is_member, eps=0.001) -> (array, array, array):
     """Binary search over the diagonal of the rectangle.
-    
+
     Returns the lower and upper approximation on the diagonal.
     """
     lo, hi = 0, 1
@@ -38,11 +38,38 @@ def backward_cone(p: array, r: Rec) -> Rec:
     return Rec(r.bot, p)
 
 
-def incomparable(p: array, r: Rec) -> [Rec]:
+def basis_vec(i, dim):
+    """Basis vector i"""
+    a = np.zeros(dim)
+    a[i] = 1.0
+    return a
+
+
+@fn.memoize
+def basis_vecs(dim):
+    """Standard orthonormal basis."""
+    return [basis_vec(i, dim) for i in range(dim)]
+
+
+def generate_incomparables(mid, r):
+    """Generate all incomparable hyper-boxes."""
+    forward, backward = forward_cone(mid, r), backward_cone(mid, r)
+    bases = (backward.bot, forward.bot)
+    diags = (backward.top - backward.bot, forward.top - forward.bot)
+    dim = len(bases[0])
+    basis = basis_vecs(dim)
+    for i in range(1, dim):
+        for es in combinations(basis, i):
+            vs = tuple(sum((diag @e)*e for e in es) for diag in diags)
+            yield Rec(*[base + v for base, v in zip(bases, vs)])
+
+
+def subdivide(low, mid, high, r: Rec) -> [Rec]:
     """Computes the set of incomparable cones of point p."""
-    r01 = Rec(array([r.bot[0], p[1]]), array([p[0], r.top[1]]))
-    r10 = Rec(array([p[0], r.bot[1]]), array([r.top[0], p[1]]))
-    return [r01, r10]
+    forward = forward_cone(high, r)
+    backward = backward_cone(low, r)
+    incomparables = list(generate_incomparables(mid, r))
+    return backward, forward, incomparables
 
 
 def multidim_search(rec: Rec, is_member) -> [({Rec}, {Rec})]:
@@ -52,15 +79,16 @@ def multidim_search(rec: Rec, is_member) -> [({Rec}, {Rec})]:
     while True:
         rec = queue.pop()
         low, mid, high = binsearch(rec, is_member)
+        backward, forward, incomparables = subdivide(low, mid, high, rec)
 
-        bad_approx.append(backward_cone(low, rec))
-        good_approx.append(forward_cone(mid, rec))
-        queue.extendleft(incomparable(mid, rec))
+        bad_approx.append(backward)
+        good_approx.append(forward)
+        queue.extendleft(incomparables)
 
         yield bad_approx, good_approx
 
 
-def draw_rec(dwg, r:Rec, is_member:bool):
+def draw_rec(dwg, r: Rec, is_member: bool):
     """TODO: handle different orientations."""
     bot = tuple(map(float, r.bot))
     dim = tuple(map(float, r.top - r.bot))
@@ -68,7 +96,7 @@ def draw_rec(dwg, r:Rec, is_member:bool):
     return dwg.rect(bot, dim, fill=color)
 
 
-def draw_domain(r:Rec, good:{Rec}, bad:{Rec}, scale):
+def draw_domain(r: Rec, good: {Rec}, bad: {Rec}, scale):
     width, height = tuple(map(float, scale(r.top - r.bot)))
     dwg = svgwrite.Drawing(width=width, height=height)
     scale_rec = lambda x: Rec(scale(x.bot), scale(x.top))
@@ -84,7 +112,7 @@ def multidim_search_and_draw(rec, is_member, n, save_path):
     bad, good = fn.nth(n, multidim_search(rec, is_member))
     # TODO automate detecting a good scale
     # currently assumes -1, 1 to 0, 100 transformation
-    scale = lambda x: 100*(x +1)
+    scale = lambda x: 100 * (x + 1)
     dwg = draw_domain(rec, good=good, bad=bad, scale=scale)
     with Path(save_path).open('w') as f:
         dwg.write(f)
@@ -92,8 +120,8 @@ def multidim_search_and_draw(rec, is_member, n, save_path):
 
 def main():
     R = Rec(-np.ones(2), np.ones(2))
-    n = np.array([1,1])/np.sqrt(2)
-    f = lambda x: x@n > 0
+    n = np.array([1, 1]) / np.sqrt(2)
+    f = lambda x: x @n > 0
     multidim_search_and_draw(R, f, 100, "foo.svg")
 
     f = lambda x: x[0] > 0
@@ -102,11 +130,9 @@ def main():
     f = lambda x: x[1] > 0
     multidim_search_and_draw(R, f, 100, "foo3.svg")
 
-    f = lambda x: (x@n > 0 and x[0] > 0) or (x@n > -0.2 and x[0] < 0)
+    f = lambda x: (x @n > 0 and x[0] > 0) or (x @n > -0.2 and x[0] < 0)
     multidim_search_and_draw(R, f, 100, "foo4.svg")
 
-        
 
 if __name__ == "__main__":
     main()
-    
