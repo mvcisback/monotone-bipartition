@@ -122,17 +122,22 @@ def main():
     R = Rec(-np.ones(2), np.ones(2))
     n = np.array([1, 1]) / np.sqrt(2)
     f = lambda x: x @n > 0
-    multidim_search_and_draw(R, f, 100, "foo.svg")
+    multidim_search_and_draw(R, f, 1000, "foo.svg")
 
     f = lambda x: x[0] > 0
-    multidim_search_and_draw(R, f, 100, "foo2.svg")
+    multidim_search_and_draw(R, f, 1000, "foo2.svg")
 
     f = lambda x: x[1] > 0
-    multidim_search_and_draw(R, f, 100, "foo3.svg")
+    multidim_search_and_draw(R, f, 1000, "foo3.svg")
 
-    f = lambda x: (x @n > 0 and x[0] > 0) or (x @n > -0.2 and x[0] < 0)
-    multidim_search_and_draw(R, f, 100, "foo4.svg")
+    f = lambda x: (x @n > 0 and x[0] > 0) or (x @n > 0.2 and x[0] < 0)
+    multidim_search_and_draw(R, f, 1000, "foo4.svg")
 
+    f = lambda x: np.abs(x[1]) > x[0]**2 if x[0] < 0 else x@n > 0
+    multidim_search_and_draw(R, f, 1000, "foo5.svg")
+
+
+    
 
 if __name__ == "__main__":
     main()
