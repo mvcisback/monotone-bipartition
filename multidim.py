@@ -2,6 +2,7 @@
 from collections import namedtuple, deque
 from itertools import chain, combinations
 from pathlib import Path
+from heapq import heappush as hpush, heappop as hpop
 
 import numpy as np
 from numpy import array
@@ -72,19 +73,29 @@ def subdivide(low, mid, high, r: Rec) -> [Rec]:
     return backward, forward, incomparables
 
 
-def multidim_search(rec: Rec, is_member) -> [({Rec}, {Rec})]:
+def volume(rec: Rec):
+    return np.prod(np.abs(rec.bot-rec.top))
+
+
+def multidim_search(rec: Rec, is_member, vol_tol=0.0001) -> [({Rec}, {Rec}), ]:
     """Generator for iteratively approximating the oracle's threshold."""
-    queue = deque([rec])
+    initial_vol = unknown_vol = volume(rec)
+    queue = [(unknown_vol, rec)]
     good_approx, bad_approx = [], []
-    while True:
-        rec = queue.pop()
+    while unknown_vol / initial_vol > vol_tol:
+        _, rec = hpop(queue)
+        rec = Rec(*map(np.array, rec))
         low, mid, high = binsearch(rec, is_member)
         backward, forward, incomparables = subdivide(low, mid, high, rec)
-
         bad_approx.append(backward)
         good_approx.append(forward)
-        queue.extendleft(incomparables)
 
+        # not correct, since is doesn't include upward closure's area
+        unknown_vol -= volume(backward) + volume(forward)
+        
+        for r in incomparables:
+            hpush(queue, (volume(r), tuple(map(tuple, r))))
+        
         yield bad_approx, good_approx
 
 
@@ -108,14 +119,16 @@ def draw_domain(r: Rec, good: {Rec}, bad: {Rec}, scale):
     return dwg
 
 
-def multidim_search_and_draw(rec, is_member, n, save_path):
+def multidim_search_and_draw(rec, is_member, n, save_path=None):
     bad, good = fn.nth(n, multidim_search(rec, is_member))
     # TODO automate detecting a good scale
     # currently assumes -1, 1 to 0, 100 transformation
     scale = lambda x: 100 * (x + 1)
     dwg = draw_domain(rec, good=good, bad=bad, scale=scale)
-    with Path(save_path).open('w') as f:
-        dwg.write(f)
+    if save_path:
+        with Path(save_path).open('w') as f:
+            dwg.write(f)
+    return dwg
 
 
 def main():
@@ -135,7 +148,6 @@ def main():
 
     f = lambda x: np.abs(x[1]) > x[0]**2 if x[0] < 0 else x@n > 0
     multidim_search_and_draw(R, f, 1000, "foo5.svg")
-
 
     
 
