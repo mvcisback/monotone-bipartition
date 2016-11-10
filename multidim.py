@@ -29,6 +29,9 @@ def binsearch(r: Rec, is_member, eps=0.001) -> (array, array, array):
     return f(lo), f(mid), f(hi)
 
 
+def to_tuple(r: Rec):
+    return tuple(map(tuple, r))
+
 def forward_cone(p: array, r: Rec) -> Rec:
     """Computes the forward cone from point p."""
     return Rec(p, r.top)
@@ -94,7 +97,7 @@ def multidim_search(rec: Rec, is_member, vol_tol=0.0001) -> [({Rec}, {Rec}), ]:
         unknown_vol -= volume(backward) + volume(forward)
         
         for r in incomparables:
-            hpush(queue, (volume(r), tuple(map(tuple, r))))
+            hpush(queue, (volume(r), to_tuple(r)))
         
         yield bad_approx, good_approx
 
