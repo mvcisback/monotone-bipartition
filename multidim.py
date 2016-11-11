@@ -80,7 +80,7 @@ def volume(rec: Rec):
     return np.prod(np.abs(rec.bot-rec.top))
 
 
-def multidim_search(rec: Rec, is_member, vol_tol=0.0001) -> [({Rec}, {Rec}), ]:
+def multidim_search(rec: Rec, is_member, vol_tol=0.01) -> [({Rec}, {Rec}), ]:
     """Generator for iteratively approximating the oracle's threshold."""
     initial_vol = unknown_vol = volume(rec)
     queue = [(unknown_vol, rec)]
@@ -97,8 +97,8 @@ def multidim_search(rec: Rec, is_member, vol_tol=0.0001) -> [({Rec}, {Rec}), ]:
         unknown_vol -= volume(backward) + volume(forward)
         
         for r in incomparables:
-            hpush(queue, (volume(r), to_tuple(r)))
-        
+            hpush(queue, (-volume(r), to_tuple(r)))
+
         yield bad_approx, good_approx
 
 
@@ -123,7 +123,7 @@ def draw_domain(r: Rec, good: {Rec}, bad: {Rec}, scale):
 
 
 def multidim_search_and_draw(rec, is_member, n, save_path=None):
-    bad, good = fn.nth(n, multidim_search(rec, is_member))
+    bad, good = fn.last(multidim_search(rec, is_member))
     # TODO automate detecting a good scale
     # currently assumes -1, 1 to 0, 100 transformation
     scale = lambda x: 100 * (x + 1)

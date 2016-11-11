@@ -50,12 +50,6 @@ class TestMultidimSearch(unittest.TestCase):
         self.assertEqual(set(map(md.to_tuple,
             md.generate_incomparables(mid, r))), i)
 
-    def test_subdivide(self):
-        assert False
-
-    def test_basis_vecs(self):
-        assert False
-
     @params((r0, F0), (r1, F1))
     def test_binsearch(self, r, f):
         lo, mid, hi = md.binsearch(r, f, eps=0.0001)
