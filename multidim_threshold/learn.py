@@ -12,7 +12,7 @@ import funcy as fn
 Rec = namedtuple("Rec", "bot top")
 
 
-def binsearch(r: Rec, is_member, eps=0.001) -> (array, array, array):
+def binsearch(r: Rec, is_member, eps=0.01) -> (array, array, array):
     """Binary search over the diagonal of the rectangle.
 
     Returns the lower and upper approximation on the diagonal.
@@ -80,7 +80,7 @@ def volume(rec: Rec):
     return np.prod(np.abs(rec.bot-rec.top))
 
 
-def multidim_search(rec: Rec, is_member, vol_tol=0.01) -> [({Rec}, {Rec}), ]:
+def multidim_search(rec: Rec, is_member, vol_tol=0.02) -> [({Rec}, {Rec}), ]:
     """Generator for iteratively approximating the oracle's threshold."""
     initial_vol = unknown_vol = volume(rec)
     queue = [(unknown_vol, rec)]
