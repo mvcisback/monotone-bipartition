@@ -84,7 +84,7 @@ def multidim_search(rec: Rec, is_member) -> [({Rec}, {Rec}), ]:
     initial_vol = unknown_vol = volume(rec)
     queue = [(unknown_vol, rec)]
     good_approx, bad_approx = [], []
-    while True:
+    while queue:
         _, rec = hpop(queue)
         rec = Rec(*map(np.array, rec))
         low, mid, high = binsearch(rec, is_member)
