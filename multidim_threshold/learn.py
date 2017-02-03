@@ -17,6 +17,7 @@ def binsearch(r: Rec, is_member, eps=0.01) -> (array, array, array):
 
     Returns the lower and upper approximation on the diagonal.
     """
+
     lo, hi = 0, 1
     diag = r.top - r.bot
     f = lambda t: r.bot + t * diag
@@ -27,6 +28,28 @@ def binsearch(r: Rec, is_member, eps=0.01) -> (array, array, array):
         else:
             lo, hi = lo, mid
     return f(lo), f(mid), f(hi)
+    
+def weightedbinsearch(e: Rec, is_member, eps=0.01) -> (array, array, array):
+    lo, hi = 0, 1
+    diag = r.top - r.bot
+    f = lambda t: r.bot + t * diag
+    if is_member(f(hi))*is_member(f(lo)) < 0:    #They are opposite signed
+        while hi - lo > eps:
+            mid = lo - is_member(f(lo)) * (hi - lo) / (is_member(f(hi)) -  is_member(f(lo)))
+            if is_member(f(mid)) * is_member(f(hi)) < 0:    # That is robustness of hi and robustness of mid are opposite signed
+                lo, hi = mid, hi
+            elif is_member(f(mid)) * is_member(f(lo)) < 0:
+                lo, hi = lo, mid
+            else:
+                return f(lo), f(mid), f(hi)
+    else:
+        # TO-DO: what happens if the entire space is of same robustness
+        return f(lo), f(lo), f(hi)
+    return f(lo), f(mid), f(hi)    
+                    
+            
+
+        
 
 
 def to_tuple(r: Rec):
@@ -126,7 +149,6 @@ def multidim_search_and_draw(rec, is_member, save_path=None,
                              *, vol_tol=0.02, n=1000):
     def f(x):
         return x[0] > n or float(x[1][0]) < vol_tol
-
     approxes = multidim_search(rec, is_member)
     _, (_, (bad, good, q)) = fn.first(filter(f, enumerate(approxes)))
 
