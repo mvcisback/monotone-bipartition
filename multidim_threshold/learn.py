@@ -29,7 +29,7 @@ def binsearch(r: Rec, is_member, eps=0.01) -> (array, array, array):
             lo, hi = lo, mid
     return f(lo), f(mid), f(hi)
     
-def weightedbinsearch(e: Rec, is_member, eps=0.01) -> (array, array, array):
+def weightedbinsearch(r: Rec, is_member, eps=0.01) -> (array, array, array):
     lo, hi = 0, 1
     diag = r.top - r.bot
     f = lambda t: r.bot + t * diag
@@ -110,7 +110,7 @@ def multidim_search(rec: Rec, is_member) -> [({Rec}, {Rec}), ]:
     while True:
         _, rec = hpop(queue)
         rec = Rec(*map(np.array, rec))
-        low, mid, high = binsearch(rec, is_member)
+        low, mid, high = weightedbinsearch(rec, is_member)
         backward, forward, incomparables = subdivide(low, mid, high, rec)
         bad_approx.append(backward)
         good_approx.append(forward)
