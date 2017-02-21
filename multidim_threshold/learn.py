@@ -61,8 +61,6 @@ def weightedbinsearch(r: Rec, robust, eps=0.01) -> (array, array, array):
 
 def gridSearch(r: Rec, is_member, eps=0.01):
     dimen = len(r.bot)
-    children = np.power(2, len(r.bot))
-    parent = r.bot
     positives, negatives = [], []
     queue = [r.bot]
     while queue:
@@ -73,10 +71,12 @@ def gridSearch(r: Rec, is_member, eps=0.01):
             negatives.append(node)
 
         for i in range(dimen):
-            childIncrement = np.dot(np.array(eps), np.array([int(j) for j in str(np.binary_repr(i+1))]))
+            childIncrement = eps*np.array([int(j) for j in str(np.binary_repr(i+1))])
             if (node + childIncrement <= r.top).all():
                 hpush(queue, node+childIncrement)
-    return (positives, negatives)
+    # TODO: fill in mid (1 point look ahead)
+    # TODO: fill in vol (# mid points * eps)
+    return Result(vol=None, mid=None, good=positives, bad=negatives, queue=None)
 
 
 def to_tuple(r: Rec):
