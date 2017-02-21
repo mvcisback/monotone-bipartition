@@ -18,41 +18,45 @@ def binsearch(r: Rec, is_member, eps=0.01) -> (array, array, array):
 
     Returns the lower and upper approximation on the diagonal.
     """
-
     lo, hi = 0, 1
     diag = r.top - r.bot
     f = lambda t: r.bot + t * diag
-    print('Bin search results')
-    print(lo, hi)
     while hi - lo > eps:
         mid = lo + (hi - lo) / 2
-        if not is_member(f(mid)):
-            lo, hi = mid, hi
-        else:
-            lo, hi = lo, mid
+        lo, hi = (mid, hi) if not is_member(f(mid)) else (lo, mid)
+
     return f(lo), f(mid), f(hi)
 
-def weightedbinsearch(r: Rec, is_member, eps=0.01) -> (array, array, array):
+def weightedbinsearch(r: Rec, robust, eps=0.01) -> (array, array, array):
     lo, hi = 0, 1
     diag = r.top - r.bot
     f = lambda t: r.bot + t * diag
-    if is_member(f(hi))*is_member(f(lo)) < 0:    #They are opposite signed
+    frobust = lambda t: robust(f(t))
+
+    #They are opposite signed
+    rh, rl = frobust(hi), frobust(lo)
+    if rh * rl >= 0:
+        flo, fhi = f(lo), f(hi)
+        fmid = flo if rh < 0 else fhi
+        return flo, fmid, fhi
+    else:
         while hi - lo > eps:
-            mid = lo - is_member(f(lo)) * (hi - lo) / (is_member(f(hi)) -  is_member(f(lo)))
-            if is_member(f(mid)) * is_member(f(hi)) < 0:    # That is robustness of hi and robustness of mid are opposite signed
+            frlo, frhi = frobust(lo), frobust(hi)
+            ratio = frlo / (frhi - frlo)
+            mid = lo - (hi - lo)*ratio
+            frmid = robust(f(mid))
+            # hi and robustness 
+            # of mid are opposite signed
+            if frmid * frhi < 0:
                 lo, hi = mid, hi
-            elif is_member(f(mid)) * is_member(f(lo)) < 0:
+            elif fmid * flo < 0:
                 lo, hi = lo, mid
             else:
-                lo = mid - eps/2
-                hi = mid + eps/2
-                return f(lo), f(mid), f(hi)
-    else:
-        if is_member(f(hi)) < 0:
-            return f(lo), f(lo), f(hi)
-        else:
-            return f(lo), f(hi), f(hi)
+                lo, hi = mid - eps/2, mid + eps/2
+                break
+
     return f(lo), f(mid), f(hi)
+
 
 def gridSearch(r: Rec, is_member, eps=0.01):
     dimen = len(r.bot)
@@ -73,9 +77,6 @@ def gridSearch(r: Rec, is_member, eps=0.01):
             if (node + childIncrement <= r.top).all():
                 hpush(queue, node+childIncrement)
     return (positives, negatives)
-
-
-
 
 
 def to_tuple(r: Rec):
@@ -128,7 +129,7 @@ def subdivide(low, mid, high, r: Rec) -> [Rec]:
 def volume(rec: Rec):
     return np.prod(np.abs(rec.bot-rec.top))
 
-def multidim_search(rec: Rec, is_member) -> [({Rec}, {Rec}), ]:
+def multidim_search(rec: Rec, is_member, diagsearch=binsearch):
     """Generator for iteratively approximating the oracle's threshold."""
     initial_vol = unknown_vol = volume(rec)
     queue = [(unknown_vol, rec)]
@@ -136,8 +137,7 @@ def multidim_search(rec: Rec, is_member) -> [({Rec}, {Rec}), ]:
     while queue:
         _, rec = hpop(queue)
         rec = Rec(*map(np.array, rec))
-        #low, mid, high = weightedbinsearch(rec, is_member)
-        low, mid, high = binsearch(rec, is_member)
+        low, mid, high = diagsearch(rec, is_member)
         backward, forward, incomparables = subdivide(low, mid, high, rec)
         bad_approx.append(backward)
         good_approx.append(forward)
@@ -146,9 +146,6 @@ def multidim_search(rec: Rec, is_member) -> [({Rec}, {Rec}), ]:
             hpush(queue, (-volume(r), to_tuple(r)))
 
         # not correct, since is doesn't include upward closure's area
-        print("Volume")
-        print(backward, forward)
-        print(volume(backward), volume(forward))
         unknown_vol -= volume(backward) + volume(forward)
         est_pct_vol = unknown_vol / initial_vol
 
@@ -179,14 +176,14 @@ def draw_domain(r: Rec, good: {Rec}, bad: {Rec}, scale):
 def multidim_search_and_draw(rec, is_member, save_path=None,
                              *, vol_tol=0.02, n=1000):
     def f(x):
-        return x[0] > n or float(x[1][0]) < vol_tol
+        return x[0] > n or float(x[1].vol) < vol_tol
     approxes = multidim_search(rec, is_member)
-    _, (_, (bad, good, q)) = fn.first(filter(f, enumerate(approxes)))
+    (_, res) = fn.first(filter(f, enumerate(approxes)))
 
     # TODO automate detecting a good scale
     # currently assumes -1, 1 to 0, 100 transformation
     scale = lambda x: 100 * (x + 1)
-    dwg = draw_domain(rec, good=good, bad=bad, scale=scale)
+    dwg = draw_domain(rec, good=res.good, bad=res.bad, scale=scale)
     if save_path:
         with Path(save_path).open('w') as f:
             dwg.write(f)
