@@ -10,6 +10,7 @@ import svgwrite
 import funcy as fn
 
 Rec = namedtuple("Rec", "bot top")
+Result = namedtuple("Result", "vol bad mid good queue")
 
 
 def binsearch(r: Rec, is_member, eps=0.01) -> (array, array, array):
@@ -17,9 +18,12 @@ def binsearch(r: Rec, is_member, eps=0.01) -> (array, array, array):
 
     Returns the lower and upper approximation on the diagonal.
     """
+
     lo, hi = 0, 1
     diag = r.top - r.bot
     f = lambda t: r.bot + t * diag
+    print('Bin search results')
+    print(lo, hi)
     while hi - lo > eps:
         mid = lo + (hi - lo) / 2
         if not is_member(f(mid)):
@@ -27,6 +31,51 @@ def binsearch(r: Rec, is_member, eps=0.01) -> (array, array, array):
         else:
             lo, hi = lo, mid
     return f(lo), f(mid), f(hi)
+
+def weightedbinsearch(r: Rec, is_member, eps=0.01) -> (array, array, array):
+    lo, hi = 0, 1
+    diag = r.top - r.bot
+    f = lambda t: r.bot + t * diag
+    if is_member(f(hi))*is_member(f(lo)) < 0:    #They are opposite signed
+        while hi - lo > eps:
+            mid = lo - is_member(f(lo)) * (hi - lo) / (is_member(f(hi)) -  is_member(f(lo)))
+            if is_member(f(mid)) * is_member(f(hi)) < 0:    # That is robustness of hi and robustness of mid are opposite signed
+                lo, hi = mid, hi
+            elif is_member(f(mid)) * is_member(f(lo)) < 0:
+                lo, hi = lo, mid
+            else:
+                lo = mid - eps/2
+                hi = mid + eps/2
+                return f(lo), f(mid), f(hi)
+    else:
+        if is_member(f(hi)) < 0:
+            return f(lo), f(lo), f(hi)
+        else:
+            return f(lo), f(hi), f(hi)
+    return f(lo), f(mid), f(hi)
+
+def gridSearch(r: Rec, is_member, eps=0.01):
+    dimen = len(r.bot)
+    children = np.power(2, len(r.bot))
+    parent = r.bot
+    positives = []
+    negatives = []
+    queue = [r.bot]
+    while queue:
+        node = hpop(queue)
+        if is_member(node) > 0:
+            positives.append(node)
+        else:
+            negatives.append(node)
+
+        for i in range(dimen):
+            childIncrement = np.dot(np.array(eps), np.array([int(j) for j in str(np.binary_repr(i+1))]))
+            if (node + childIncrement <= r.top).all():
+                hpush(queue, node+childIncrement)
+    return (positives, negatives)
+
+
+
 
 
 def to_tuple(r: Rec):
@@ -87,18 +136,23 @@ def multidim_search(rec: Rec, is_member) -> [({Rec}, {Rec}), ]:
     while queue:
         _, rec = hpop(queue)
         rec = Rec(*map(np.array, rec))
+        #low, mid, high = weightedbinsearch(rec, is_member)
         low, mid, high = binsearch(rec, is_member)
         backward, forward, incomparables = subdivide(low, mid, high, rec)
         bad_approx.append(backward)
         good_approx.append(forward)
-        
+
         for r in incomparables:
             hpush(queue, (-volume(r), to_tuple(r)))
 
         # not correct, since is doesn't include upward closure's area
+        print("Volume")
+        print(backward, forward)
+        print(volume(backward), volume(forward))
         unknown_vol -= volume(backward) + volume(forward)
         est_pct_vol = unknown_vol / initial_vol
-        yield est_pct_vol, (bad_approx, good_approx, queue)
+
+        yield Result(est_pct_vol, bad_approx, mid, good_approx, queue)
 
 
 def draw_rec(dwg, r: Rec, is_member: bool):
@@ -126,7 +180,6 @@ def multidim_search_and_draw(rec, is_member, save_path=None,
                              *, vol_tol=0.02, n=1000):
     def f(x):
         return x[0] > n or float(x[1][0]) < vol_tol
-
     approxes = multidim_search(rec, is_member)
     _, (_, (bad, good, q)) = fn.first(filter(f, enumerate(approxes)))
 
@@ -158,7 +211,7 @@ def main():
     f = lambda x: np.abs(x[1]) > x[0]**2 if x[0] < 0 else x@n > 0
     multidim_search_and_draw(R, f, "foo5.svg")
 
-    
+
 
 if __name__ == "__main__":
     main()
