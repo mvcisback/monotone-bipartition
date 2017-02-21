@@ -27,13 +27,14 @@ def binsearch(r: Rec, is_member, eps=0.01) -> (array, array, array):
 
     return f(lo), f(mid), f(hi)
 
+
 def weightedbinsearch(r: Rec, robust, eps=0.01) -> (array, array, array):
     lo, hi = 0, 1
     diag = r.top - r.bot
     f = lambda t: r.bot + t * diag
     frobust = lambda t: robust(f(t))
 
-    #They are opposite signed
+    # They are opposite signed
     rh, rl = frobust(hi), frobust(lo)
     if rh * rl >= 0:
         flo, fhi = f(lo), f(hi)
@@ -44,12 +45,12 @@ def weightedbinsearch(r: Rec, robust, eps=0.01) -> (array, array, array):
             frlo, frhi = frobust(lo), frobust(hi)
             ratio = frlo / (frhi - frlo)
             mid = lo - (hi - lo)*ratio
-            frmid = robust(f(mid))
+            frmid = frobust(mid)
             # hi and robustness 
             # of mid are opposite signed
             if frmid * frhi < 0:
                 lo, hi = mid, hi
-            elif fmid * flo < 0:
+            elif frmid * frlo < 0:
                 lo, hi = lo, mid
             else:
                 lo, hi = mid - eps/2, mid + eps/2
@@ -62,8 +63,7 @@ def gridSearch(r: Rec, is_member, eps=0.01):
     dimen = len(r.bot)
     children = np.power(2, len(r.bot))
     parent = r.bot
-    positives = []
-    negatives = []
+    positives, negatives = [], []
     queue = [r.bot]
     while queue:
         node = hpop(queue)
