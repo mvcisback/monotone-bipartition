@@ -63,18 +63,16 @@ def gridSearch(r: Rec, is_member, eps=0.01):
     dimen = len(r.bot)
     positives, negatives = [], []
     queue = [r.bot]
-    basis = basis_vecs(dimen)
     while queue:
         node = hpop(queue)
         if is_member(node) > 0:
-            # Makes it independent of the type of is_member functions
             positives.append(node)
         else:
             negatives.append(node)
 
         for i in range(dimen):
-            childIncrement = eps*np.array(basis[i])
-            if (node + childIncrement <= r.top).all() & (node + childIncrement not in queue):
+            childIncrement = eps*np.array([int(j) for j in str(np.binary_repr(i+1))])
+            if (node + childIncrement <= r.top).all():
                 hpush(queue, node+childIncrement)
     # TODO: fill in mid (1 point look ahead)
     # TODO: fill in vol (# mid points * eps)
@@ -139,7 +137,6 @@ def multidim_search(rec: Rec, is_member, diagsearch=binsearch):
     while queue:
         _, rec = hpop(queue)
         rec = Rec(*map(np.array, rec))
-        print(diagsearch)
         low, mid, high = diagsearch(rec, is_member)
         backward, forward, incomparables = subdivide(low, mid, high, rec)
         bad_approx.append(backward)
