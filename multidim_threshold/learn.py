@@ -1,16 +1,14 @@
 """Implements muli-dimensional threshold discovery via binary search."""
-from collections import namedtuple, deque
-from itertools import chain, combinations
-from pathlib import Path
+from collections import namedtuple
+from itertools import combinations
 from heapq import heappush as hpush, heappop as hpop
 
 import numpy as np
 from numpy import array
-import svgwrite
 import funcy as fn
 
 Rec = namedtuple("Rec", "bot top")
-Result = namedtuple("Result", "vol bad mid good queue")
+Result = namedtuple("Result", "vol mids unexplored")
 
 def binsearch(r:Rec, stleval, tol=1e-3):
     """Binary search over the diagonal of the rectangle.
@@ -68,24 +66,22 @@ def weightedbinsearch(r: Rec, robust, eps=0.01) -> (array, array, array):
     return f(lo), f(mid), f(hi)
 
 
-def gridSearch(r: Rec, is_member, eps=0.01):
-    dimen = len(r.bot)
-    positives, negatives = [], []
-    queue = [r.bot]
+def gridSearch(r: Rec, is_member, eps=0.1):
+    dim = len(r.bot)
+    basis = basis_vecs(dim)
+    polarity = not is_member(r.bot)
+    queue, mids = [(r.bot, None)], set()
+    children = lambda node: (eps*b + node for b in basis)
     while queue:
-        node = hpop(queue)
-        if is_member(node) > 0:
-            positives.append(node)
+        node, prev = hpop(queue)
+        if not(is_member(node) ^ polarity):
+            mids.add(tuple(list(prev)))
         else:
-            negatives.append(node)
+            for c in children(node):
+                hpush(queue, (c, node))
 
-        for i in range(dimen):
-            childIncrement = eps*np.array([int(j) for j in str(np.binary_repr(i+1))])
-            if (node + childIncrement <= r.top).all():
-                hpush(queue, node+childIncrement)
-    # TODO: fill in mid (1 point look ahead)
-    # TODO: fill in vol (# mid points * eps)
-    return Result(vol=None, mid=None, good=positives, bad=negatives, queue=None)
+    mids = [np.array(m) for m in mids]
+    return Result(vol=eps**dim * len(mids), mids=mids, unexplored=[])
 
 
 def to_tuple(r: Rec):
@@ -143,14 +139,13 @@ def multidim_search(rec: Rec, is_member, diagsearch=binsearch):
     """Generator for iteratively approximating the oracle's threshold."""
     initial_vol = unknown_vol = volume(rec)
     queue = [(unknown_vol, rec)]
-    good_approx, bad_approx = [], []
+    mids = []
     while queue:
         _, rec = hpop(queue)
         rec = Rec(*map(np.array, rec))
         low, mid, high = diagsearch(rec, is_member)
         backward, forward, incomparables = subdivide(low, mid, high, rec)
-        bad_approx.append(backward)
-        good_approx.append(forward)
+        mids.append(mid)
 
         for r in incomparables:
             hpush(queue, (-volume(r), to_tuple(r)))
@@ -158,5 +153,4 @@ def multidim_search(rec: Rec, is_member, diagsearch=binsearch):
         # not correct, since is doesn't include upward closure's area
         unknown_vol -= volume(backward) + volume(forward)
         est_pct_vol = unknown_vol / initial_vol
-
-        yield Result(est_pct_vol, bad_approx, mid, good_approx, queue)
+        yield Result(est_pct_vol, mids, queue)
