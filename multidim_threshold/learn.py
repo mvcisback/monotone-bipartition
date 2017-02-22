@@ -12,8 +12,7 @@ import funcy as fn
 Rec = namedtuple("Rec", "bot top")
 Result = namedtuple("Result", "vol bad mid good queue")
 
-
-def binsearch(r: Rec, is_member, eps=0.01) -> (array, array, array):
+def binsearch(r:Rec, stleval, tol=1e-3):
     """Binary search over the diagonal of the rectangle.
 
     Returns the lower and upper approximation on the diagonal.
@@ -21,10 +20,20 @@ def binsearch(r: Rec, is_member, eps=0.01) -> (array, array, array):
     lo, hi = 0, 1
     diag = r.top - r.bot
     f = lambda t: r.bot + t * diag
-    while hi - lo > eps:
-        mid = lo + (hi - lo) / 2
-        lo, hi = (mid, hi) if not is_member(f(mid)) else (lo, mid)
+    feval = lambda t: stleval(f(t))
+    polarity = not feval(r.bot)
 
+    # Early termination via bounds checks
+    if polarity and feval(lo):
+        return f(lo), f(lo), f(lo)
+    elif not polarity and feval(hi):
+        return f(hi), f(hi), f(hi)
+
+    while hi - lo > tol:
+        mid = lo + (hi - lo) / 2
+        lo, hi = (mid, hi) if feval(mid) ^ polarity else (lo, mid)
+
+    # Want satisifiable formula
     return f(lo), f(mid), f(hi)
 
 
@@ -129,6 +138,7 @@ def subdivide(low, mid, high, r: Rec) -> [Rec]:
 def volume(rec: Rec):
     return np.prod(np.abs(rec.bot-rec.top))
 
+
 def multidim_search(rec: Rec, is_member, diagsearch=binsearch):
     """Generator for iteratively approximating the oracle's threshold."""
     initial_vol = unknown_vol = volume(rec)
@@ -150,65 +160,3 @@ def multidim_search(rec: Rec, is_member, diagsearch=binsearch):
         est_pct_vol = unknown_vol / initial_vol
 
         yield Result(est_pct_vol, bad_approx, mid, good_approx, queue)
-
-
-def draw_rec(dwg, r: Rec, is_member: bool):
-    """TODO: handle different orientations."""
-    bot = tuple(map(float, r.bot))
-    dim = tuple(map(float, r.top - r.bot))
-    color = "red" if is_member else "green"
-    return dwg.rect(bot, dim, fill=color)
-
-
-def draw_domain(r: Rec, good: {Rec}, bad: {Rec}, scale):
-    width, height = tuple(map(float, scale(r.top - r.bot)))
-    dwg = svgwrite.Drawing(width=width, height=height)
-    scale_rec = lambda x: Rec(scale(x.bot), scale(x.top))
-    good_recs = (draw_rec(dwg, scale_rec(r), True) for r in good)
-    bad_recs = (draw_rec(dwg, scale_rec(r), False) for r in bad)
-
-    for svg_rec in chain(good_recs, bad_recs):
-        dwg.add(svg_rec)
-    return dwg
-
-
-
-def multidim_search_and_draw(rec, is_member, save_path=None,
-                             *, vol_tol=0.02, n=1000):
-    def f(x):
-        return x[0] > n or float(x[1].vol) < vol_tol
-    approxes = multidim_search(rec, is_member)
-    (_, res) = fn.first(filter(f, enumerate(approxes)))
-
-    # TODO automate detecting a good scale
-    # currently assumes -1, 1 to 0, 100 transformation
-    scale = lambda x: 100 * (x + 1)
-    dwg = draw_domain(rec, good=res.good, bad=res.bad, scale=scale)
-    if save_path:
-        with Path(save_path).open('w') as f:
-            dwg.write(f)
-    return dwg
-
-
-def main():
-    R = Rec(-np.ones(2), np.ones(2))
-    n = np.array([1, 1]) / np.sqrt(2)
-    f = lambda x: x @n > 0
-    multidim_search_and_draw(R, f, "foo.svg")
-
-    f = lambda x: x[0] > 0
-    multidim_search_and_draw(R, f, "foo2.svg")
-
-    f = lambda x: x[1] > 0
-    multidim_search_and_draw(R, f, "foo3.svg")
-
-    f = lambda x: (x @n > 0 and x[0] > 0) or (x @n > 0.2 and x[0] < 0)
-    multidim_search_and_draw(R, f, "foo4.svg")
-
-    f = lambda x: np.abs(x[1]) > x[0]**2 if x[0] < 0 else x@n > 0
-    multidim_search_and_draw(R, f, "foo5.svg")
-
-
-
-if __name__ == "__main__":
-    main()
