@@ -143,9 +143,14 @@ def volume(rec: Rec):
     return np.prod(np.abs(rec.bot-rec.top))
 
 
-def multidim_search(lo, hi, is_member, diagsearch=binsearch):
+def multidim_search(lo, hi, is_member, diagsearch=None):
     """Generator for iteratively approximating the oracle's threshold."""
     rec = to_rec(lo, hi)
+
+    if diagsearch is None:
+        bool_oracle = isinstance(is_member(rec.bot), bool)
+        diagsearch = binsearch if bool_oracle else weightedbinsearch
+
     initial_vol = unknown_vol = volume(rec)
     queue = [(unknown_vol, rec)]
     mids = set()
