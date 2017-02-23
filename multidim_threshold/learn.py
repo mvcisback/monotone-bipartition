@@ -1,5 +1,5 @@
 """Implements muli-dimensional threshold discovery via binary search."""
-from collections import namedtuple
+from collections import namedtuple, Iterable
 from itertools import combinations
 from heapq import heappush as hpush, heappop as hpop
 from math import isclose
@@ -8,9 +8,12 @@ import numpy as np
 from numpy import array
 import funcy as fn
 
-
 Rec = namedtuple("Rec", "bot top")
 Result = namedtuple("Result", "vol mids unexplored")
+
+def to_rec(lo, hi):
+    lo, hi = (list(lo), list(hi)) if isinstance(lo, Iterable) else ([lo], [hi])
+    return Rec(np.array(lo), np.array(hi))
 
 def binsearch(r:Rec, stleval, eps=1e-3):
     """Binary search over the diagonal of the rectangle.
@@ -70,7 +73,8 @@ def weightedbinsearch(r: Rec, robust, eps=0.01) -> (array, array, array):
     return f(lo), f(mid), f(hi)
 
 
-def gridSearch(r: Rec, is_member, eps=0.1):
+def gridSearch(lo, hi, is_member, eps=0.1):
+    r = to_rec(lo, hi)
     dim = len(r.bot)
     basis = basis_vecs(dim)
     polarity = not is_member(r.bot)
@@ -139,8 +143,9 @@ def volume(rec: Rec):
     return np.prod(np.abs(rec.bot-rec.top))
 
 
-def multidim_search(rec: Rec, is_member, diagsearch=binsearch):
+def multidim_search(lo, hi, is_member, diagsearch=binsearch):
     """Generator for iteratively approximating the oracle's threshold."""
+    rec = to_rec(lo, hi)
     initial_vol = unknown_vol = volume(rec)
     queue = [(unknown_vol, rec)]
     mids = set()
