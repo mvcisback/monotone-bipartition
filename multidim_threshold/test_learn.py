@@ -4,6 +4,8 @@ import unittest
 import multidim_threshold as mdt
 import numpy as np
 
+from functools import partial
+
 r0 = mdt.Rec(np.array([-1]), np.array([1]))
 p0 = np.array([0])
 f0 = mdt.Rec(np.array([0]), np.array([1]))
@@ -26,6 +28,9 @@ f2 = mdt.Rec(np.array([0, 0, 0]), np.array([3, 1, 3]))
 b2 = mdt.Rec(np.array([-2, -1, -2]), np.array([0, 0, 0]))
 n2 = np.array([1, 1, 1]) / np.sqrt(3)
 F2 = lambda x: x @n2 > 0
+
+ex1d = (lambda p: p > 5.435, lambda p: p - 5.435, 
+        mdt.Rec(np.array([-9]), np.array([9])))
 
 
 class TestMultidimSearch(unittest.TestCase):
@@ -55,3 +60,30 @@ class TestMultidimSearch(unittest.TestCase):
         lo, mid, hi = mdt.binsearch(r, f, eps=0.0001)
         for i in mid:
             self.assertAlmostEqual(i, 0, places=3)
+
+    @params(ex1d)
+    def test_equiv_1d_mids(self, f, r, rec):
+        _, mid1, _ = mdt.binsearch(rec, f, eps=0.001)
+        _, mid2, _ = mdt.weightedbinsearch(rec, r, eps=0.01)
+        self.assertAlmostEqual(float(mid1), float(mid2), places=2)
+        res = mdt.gridSearch(rec.bot, rec.top, f, eps=0.01)
+        self.assertAlmostEqual(list(res.mids)[0][0], float(mid2), places=2)
+
+
+    @params(ex1d)
+    def test_polarity_invariant_1d(self, f, r, rec):
+        neg_f = lambda p: not f(p)
+        neg_r = lambda p: -r(p)
+
+        _, mid1, _ = mdt.binsearch(rec, f, eps=0.0001)
+        _, mid2, _ = mdt.binsearch(rec, neg_f, eps=0.0001)
+        self.assertAlmostEqual(float(mid1 - mid2), 0, places=3)
+
+        _, mid1, _ = mdt.weightedbinsearch(rec, r, eps=0.0001)
+        _, mid2, _ = mdt.weightedbinsearch(rec, neg_r, eps=0.0001)
+        self.assertAlmostEqual(float(mid1 - mid2), 0, places=3)
+        
+        lo, hi = rec.bot, rec.top
+        mid1 = list(mdt.gridSearch(lo, hi, f, eps=0.01).mids)[0][0]
+        mid2 = list(mdt.gridSearch(lo, hi, neg_f, eps=0.01).mids)[0][0]
+        self.assertAlmostEqual(mid1, mid2, places=3)

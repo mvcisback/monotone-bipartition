@@ -1,7 +1,8 @@
 """Implements muli-dimensional threshold discovery via binary search."""
-from collections import namedtuple
+from collections import namedtuple, Iterable
 from itertools import combinations
 from heapq import heappush as hpush, heappop as hpop
+from math import isclose
 
 import numpy as np
 from numpy import array
@@ -10,7 +11,11 @@ import funcy as fn
 Rec = namedtuple("Rec", "bot top")
 Result = namedtuple("Result", "vol mids unexplored")
 
-def binsearch(r:Rec, stleval, tol=1e-3):
+def to_rec(lo, hi):
+    lo, hi = (list(lo), list(hi)) if isinstance(lo, Iterable) else ([lo], [hi])
+    return Rec(np.array(lo), np.array(hi))
+
+def binsearch(r:Rec, stleval, eps=1e-3):
     """Binary search over the diagonal of the rectangle.
 
     Returns the lower and upper approximation on the diagonal.
@@ -27,11 +32,10 @@ def binsearch(r:Rec, stleval, tol=1e-3):
     elif not polarity and feval(hi):
         return f(hi), f(hi), f(hi)
 
-    while hi - lo > tol:
+    while hi - lo > eps:
         mid = lo + (hi - lo) / 2
         lo, hi = (mid, hi) if feval(mid) ^ polarity else (lo, mid)
 
-    # Want satisifiable formula
     return f(lo), f(mid), f(hi)
 
 
@@ -40,33 +44,37 @@ def weightedbinsearch(r: Rec, robust, eps=0.01) -> (array, array, array):
     diag = r.top - r.bot
     f = lambda t: r.bot + t * diag
     frobust = lambda t: robust(f(t))
-
     # They are opposite signed
-    rh, rl = frobust(hi), frobust(lo)
-    if rh * rl >= 0:
+    frhi, frlo = frobust(hi), frobust(lo)
+    polarity = np.sign(frlo)
+
+    # Early termination via bounds checks
+    if frhi * frlo >= 0:
         flo, fhi = f(lo), f(hi)
-        fmid = flo if rh < 0 else fhi
+        fmid = flo if frhi < 0 else fhi
         return flo, fmid, fhi
-    else:
-        while hi - lo > eps:
-            frlo, frhi = frobust(lo), frobust(hi)
-            ratio = frlo / (frhi - frlo)
-            mid = lo - (hi - lo)*ratio
-            frmid = frobust(mid)
-            # hi and robustness 
-            # of mid are opposite signed
-            if frmid * frhi < 0:
-                lo, hi = mid, hi
-            elif frmid * frlo < 0:
-                lo, hi = lo, mid
-            else:
-                lo, hi = mid - eps/2, mid + eps/2
-                break
+
+    while hi - lo > eps:
+        ratio = frlo / (frhi - frlo)
+        mid = lo - (hi - lo)*ratio
+        frmid = frobust(mid)
+
+        # Check if we've almost crossed the boundary
+        # Note: Because diag is opposite direction of
+        # the boundary, the crossing point is unique.
+        if isclose(frmid, 0, abs_tol=eps):
+            lo, hi = mid - eps/2, mid + eps/2
+            break
+
+        lo, hi = (mid, hi) if frmid * frhi < 0 else (lo, mid)
+        frlo, frhi = frobust(lo), frobust(hi)
+
 
     return f(lo), f(mid), f(hi)
 
 
-def gridSearch(r: Rec, is_member, eps=0.1):
+def gridSearch(lo, hi, is_member, eps=0.1):
+    r = to_rec(lo, hi)
     dim = len(r.bot)
     basis = basis_vecs(dim)
     polarity = not is_member(r.bot)
@@ -75,12 +83,12 @@ def gridSearch(r: Rec, is_member, eps=0.1):
     while queue:
         node, prev = hpop(queue)
         if not(is_member(node) ^ polarity):
-            mids.add(tuple(list(prev)))
+            mid = eps/2*(prev-node) + node
+            mids.add(tuple(list(mid)))
         else:
             for c in children(node):
                 hpush(queue, (c, node))
 
-    mids = [np.array(m) for m in mids]
     return Result(vol=eps**dim * len(mids), mids=mids, unexplored=[])
 
 
@@ -135,17 +143,23 @@ def volume(rec: Rec):
     return np.prod(np.abs(rec.bot-rec.top))
 
 
-def multidim_search(rec: Rec, is_member, diagsearch=binsearch):
+def multidim_search(lo, hi, is_member, diagsearch=None):
     """Generator for iteratively approximating the oracle's threshold."""
+    rec = to_rec(lo, hi)
+
+    if diagsearch is None:
+        bool_oracle = isinstance(is_member(rec.bot), bool)
+        diagsearch = binsearch if bool_oracle else weightedbinsearch
+
     initial_vol = unknown_vol = volume(rec)
     queue = [(unknown_vol, rec)]
-    mids = []
+    mids = set()
     while queue:
         _, rec = hpop(queue)
         rec = Rec(*map(np.array, rec))
         low, mid, high = diagsearch(rec, is_member)
         backward, forward, incomparables = subdivide(low, mid, high, rec)
-        mids.append(mid)
+        mids.add(tuple(list(mid)))
 
         for r in incomparables:
             hpush(queue, (-volume(r), to_tuple(r)))
