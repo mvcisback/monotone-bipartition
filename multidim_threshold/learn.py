@@ -10,7 +10,7 @@ import funcy as fn
 Rec = namedtuple("Rec", "bot top")
 Result = namedtuple("Result", "vol mids unexplored")
 
-def binsearch(r:Rec, stleval, tol=1e-3):
+def binsearch(r:Rec, stleval, eps=1e-3):
     """Binary search over the diagonal of the rectangle.
 
     Returns the lower and upper approximation on the diagonal.
@@ -27,7 +27,7 @@ def binsearch(r:Rec, stleval, tol=1e-3):
     elif not polarity and feval(hi):
         return f(hi), f(hi), f(hi)
 
-    while hi - lo > tol:
+    while hi - lo > eps:
         mid = lo + (hi - lo) / 2
         lo, hi = (mid, hi) if feval(mid) ^ polarity else (lo, mid)
 
