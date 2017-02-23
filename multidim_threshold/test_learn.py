@@ -29,7 +29,7 @@ b2 = mdt.Rec(np.array([-2, -1, -2]), np.array([0, 0, 0]))
 n2 = np.array([1, 1, 1]) / np.sqrt(3)
 F2 = lambda x: x @n2 > 0
 
-ex1d = (lambda p: p > 5, lambda p: p - 5, 
+ex1d = (lambda p: p > 5.435, lambda p: p - 5.435, 
         mdt.Rec(np.array([-9]), np.array([9])))
 
 
@@ -64,10 +64,10 @@ class TestMultidimSearch(unittest.TestCase):
     @params(ex1d)
     def test_equiv_1d_mids(self, f, r, rec):
         _, mid1, _ = mdt.binsearch(rec, f, eps=0.0001)
-        _, mid2, _ = mdt.weightedbinsearch(rec, r, eps=0.01)
-        res = mdt.gridSearch(rec, f, eps=0.01)
-        self.assertAlmostEqual(float(mid1 - mid2), 0, places=3)
-        self.assertAlmostEqual(float(res.mids[0] - mid2), 0, places=3)
+        _, mid2, _ = mdt.weightedbinsearch(rec, r, eps=0.0001)
+        self.assertAlmostEqual(float(mid1), float(mid2), places=2)
+        res = mdt.gridSearch(rec, f, eps=0.0001)
+        self.assertAlmostEqual(float(res.mids[0] ), float(mid2), places=2)
 
 
     @params(ex1d)
@@ -82,9 +82,8 @@ class TestMultidimSearch(unittest.TestCase):
         _, mid1, _ = mdt.weightedbinsearch(rec, r, eps=0.0001)
         _, mid2, _ = mdt.weightedbinsearch(rec, neg_r, eps=0.0001)
         self.assertAlmostEqual(float(mid1 - mid2), 0, places=3)
+        
 
         mid1 = float(mdt.gridSearch(rec, f, eps=0.01).mids[0])
         mid2 = float(mdt.gridSearch(rec, neg_f, eps=0.01).mids[0])
         self.assertAlmostEqual(float(mid1 - mid2), 0, places=3)
-
-

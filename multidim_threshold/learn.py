@@ -2,10 +2,12 @@
 from collections import namedtuple
 from itertools import combinations
 from heapq import heappush as hpush, heappop as hpop
+from math import isclose
 
 import numpy as np
 from numpy import array
 import funcy as fn
+
 
 Rec = namedtuple("Rec", "bot top")
 Result = namedtuple("Result", "vol mids unexplored")
@@ -31,7 +33,6 @@ def binsearch(r:Rec, stleval, eps=1e-3):
         mid = lo + (hi - lo) / 2
         lo, hi = (mid, hi) if feval(mid) ^ polarity else (lo, mid)
 
-    # Want satisifiable formula
     return f(lo), f(mid), f(hi)
 
 
@@ -40,28 +41,31 @@ def weightedbinsearch(r: Rec, robust, eps=0.01) -> (array, array, array):
     diag = r.top - r.bot
     f = lambda t: r.bot + t * diag
     frobust = lambda t: robust(f(t))
-
     # They are opposite signed
-    rh, rl = frobust(hi), frobust(lo)
-    if rh * rl >= 0:
+    frhi, frlo = frobust(hi), frobust(lo)
+    polarity = np.sign(frlo)
+
+    # Early termination via bounds checks
+    if frhi * frlo >= 0:
         flo, fhi = f(lo), f(hi)
-        fmid = flo if rh < 0 else fhi
+        fmid = flo if frhi < 0 else fhi
         return flo, fmid, fhi
-    else:
-        while hi - lo > eps:
-            frlo, frhi = frobust(lo), frobust(hi)
-            ratio = frlo / (frhi - frlo)
-            mid = lo - (hi - lo)*ratio
-            frmid = frobust(mid)
-            # hi and robustness 
-            # of mid are opposite signed
-            if frmid * frhi < 0:
-                lo, hi = mid, hi
-            elif frmid * frlo < 0:
-                lo, hi = lo, mid
-            else:
-                lo, hi = mid - eps/2, mid + eps/2
-                break
+
+    while hi - lo > eps:
+        ratio = frlo / (frhi - frlo)
+        mid = lo - (hi - lo)*ratio
+        frmid = frobust(mid)
+
+        # Check if we've almost crossed the boundary
+        # Note: Because diag is opposite direction of
+        # the boundary, the crossing point is unique.
+        if isclose(frmid, 0, abs_tol=eps):
+            lo, hi = mid - eps/2, mid + eps/2
+            break
+
+        lo, hi = (mid, hi) if frmid * frhi < 0 else (lo, mid)
+        frlo, frhi = frobust(lo), frobust(hi)
+
 
     return f(lo), f(mid), f(hi)
 
@@ -75,7 +79,8 @@ def gridSearch(r: Rec, is_member, eps=0.1):
     while queue:
         node, prev = hpop(queue)
         if not(is_member(node) ^ polarity):
-            mids.add(tuple(list(prev)))
+            mid = eps/2*(prev-node) + node
+            mids.add(tuple(list(mid)))
         else:
             for c in children(node):
                 hpush(queue, (c, node))
