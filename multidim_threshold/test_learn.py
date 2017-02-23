@@ -67,7 +67,7 @@ class TestMultidimSearch(unittest.TestCase):
         _, mid2, _ = mdt.weightedbinsearch(rec, r, eps=0.0001)
         self.assertAlmostEqual(float(mid1), float(mid2), places=2)
         res = mdt.gridSearch(rec, f, eps=0.0001)
-        self.assertAlmostEqual(float(res.mids[0] ), float(mid2), places=2)
+        self.assertAlmostEqual(list(res.mids)[0][0], float(mid2), places=2)
 
 
     @params(ex1d)
@@ -84,6 +84,6 @@ class TestMultidimSearch(unittest.TestCase):
         self.assertAlmostEqual(float(mid1 - mid2), 0, places=3)
         
 
-        mid1 = float(mdt.gridSearch(rec, f, eps=0.01).mids[0])
-        mid2 = float(mdt.gridSearch(rec, neg_f, eps=0.01).mids[0])
-        self.assertAlmostEqual(float(mid1 - mid2), 0, places=3)
+        mid1 = list(mdt.gridSearch(rec, f, eps=0.01).mids)[0][0]
+        mid2 = list(mdt.gridSearch(rec, neg_f, eps=0.01).mids)[0][0]
+        self.assertAlmostEqual(mid1, mid2, places=3)

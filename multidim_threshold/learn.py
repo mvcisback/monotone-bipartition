@@ -85,7 +85,6 @@ def gridSearch(r: Rec, is_member, eps=0.1):
             for c in children(node):
                 hpush(queue, (c, node))
 
-    mids = [np.array(m) for m in mids]
     return Result(vol=eps**dim * len(mids), mids=mids, unexplored=[])
 
 
@@ -144,13 +143,13 @@ def multidim_search(rec: Rec, is_member, diagsearch=binsearch):
     """Generator for iteratively approximating the oracle's threshold."""
     initial_vol = unknown_vol = volume(rec)
     queue = [(unknown_vol, rec)]
-    mids = []
+    mids = set()
     while queue:
         _, rec = hpop(queue)
         rec = Rec(*map(np.array, rec))
         low, mid, high = diagsearch(rec, is_member)
         backward, forward, incomparables = subdivide(low, mid, high, rec)
-        mids.append(mid)
+        mids.add(tuple(list(mid)))
 
         for r in incomparables:
             hpush(queue, (-volume(r), to_tuple(r)))
