@@ -24,15 +24,16 @@ def binsearch(r:Rec, stleval, eps=1e-3):
     diag = r.top - r.bot
     f = lambda t: r.bot + t * diag
     feval = lambda t: stleval(f(t))
-    polarity = not feval(r.bot)
+    polarity = not feval(lo)
 
     # Early termination via bounds checks
-    if polarity and feval(f(lo)):
+    if polarity and feval(lo):
         return f(lo), f(lo), f(lo)
-    elif not polarity and feval(f(hi)):
+    elif not polarity and feval(hi):
         return f(hi), f(hi), f(hi)
 
-    while hi - lo > eps:
+    print(eps)
+    while (np.array(f(hi)) - np.array(f(lo)) > np.array(eps)).any():
         mid = lo + (hi - lo) / 2
         lo, hi = (mid, hi) if feval(mid) ^ polarity else (lo, mid)
 
@@ -45,7 +46,7 @@ def weightedbinsearch(r: Rec, robust, eps=0.01) -> (array, array, array):
     f = lambda t: r.bot + t * diag
     frobust = lambda t: robust(f(t))
     # They are opposite signed
-    frhi, frlo = frobust(f(hi)), frobust(f(lo))
+    frhi, frlo = frobust(hi), frobust(lo)
     polarity = np.sign(frlo)
 
 
@@ -55,7 +56,8 @@ def weightedbinsearch(r: Rec, robust, eps=0.01) -> (array, array, array):
         fmid = flo if frhi < 0 else fhi
         return flo, fmid, fhi
 
-    while hi - lo > eps:
+
+    while (np.array(f(hi)) - np.array(f(lo)) > np.array(eps)).any():
         ratio = frlo / (frhi - frlo)
         mid = lo - (hi - lo)*ratio
         frmid = frobust(mid)
