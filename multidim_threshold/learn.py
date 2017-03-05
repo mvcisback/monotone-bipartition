@@ -27,9 +27,9 @@ def binsearch(r:Rec, stleval, eps=1e-3):
     polarity = not feval(r.bot)
 
     # Early termination via bounds checks
-    if polarity and feval(lo):
+    if polarity and feval(f(lo)):
         return f(lo), f(lo), f(lo)
-    elif not polarity and feval(hi):
+    elif not polarity and feval(f(hi)):
         return f(hi), f(hi), f(hi)
 
     while hi - lo > eps:
@@ -45,8 +45,9 @@ def weightedbinsearch(r: Rec, robust, eps=0.01) -> (array, array, array):
     f = lambda t: r.bot + t * diag
     frobust = lambda t: robust(f(t))
     # They are opposite signed
-    frhi, frlo = frobust(hi), frobust(lo)
+    frhi, frlo = frobust(f(hi)), frobust(f(lo))
     polarity = np.sign(frlo)
+
 
     # Early termination via bounds checks
     if frhi * frlo >= 0:
