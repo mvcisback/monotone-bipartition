@@ -1,5 +1,5 @@
 """Implements muli-dimensional threshold discovery via binary search."""
-from collections import namedtuple, Iterable
+from collections import namedtuple
 from itertools import combinations
 from heapq import heappush as hpush, heappop as hpop
 from math import isclose
@@ -8,13 +8,9 @@ import numpy as np
 from numpy import array
 import funcy as fn
 
-Rec = namedtuple("Rec", "bot top")
+from multidim_threshold.utils import Rec, to_rec
+
 Result = namedtuple("Result", "vol mids unexplored")
-
-
-def to_rec(lo, hi):
-    lo, hi = (list(lo), list(hi)) if isinstance(lo, Iterable) else ([lo], [hi])
-    return Rec(np.array(lo), np.array(hi))
 
 
 def binsearch(r: Rec, stleval, eps=1e-3):

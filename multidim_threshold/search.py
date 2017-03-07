@@ -1,64 +1,60 @@
-import numpy as np
-import multidim_threshold as mdt
 from collections import namedtuple
-from lenses import lens
-from operator import itemgetter as ig
+
 import funcy as fn
+import numpy as np
+from lenses import lens
 
-ProjectAlong = namedtuple('ProjectAlong', 'root direc')
+import multidim_threshold as mdt
 
-new_hi = lambda pi, hi: pi.root + np.multiply(pi.direc, np.true_divide(
-    np.array(hi) - np.array(pi.root), np.array(pi.direc)).min())
-midpoint = lambda a, b: np.true_divide(np.array(a) + np.array(b), 2)
-
-
-def project_along_axes(lo, mid):
-    return [project_along_i(lo, mid, i) for i in range(len(lo))]
+ProjVec = namedtuple('ProjVec', 'root direc')
 
 
-def project_along_i(lo, mid, i):
-    return lens(lo)[i].set(mid[i])
+def new_hi(pi, hi):
+    root, direc = mdt.map_array(pi)
+    v = ((np.array(hi) - root) / direc).min()
+    return root + v * direc
 
 
-def proj_key(proj_vec):
-    return tuple(map(tuple, proj_vec))
+def learn_diagsearch(oracle, bot):
+    bot_val = oracle(bot)
+    return mdt.binsearch if isinstance(bot_val, bool) else mdt.weightedbinsearch
 
 
-def learn_diagsearch(member_oracles, bot):
-    return [mdt.binsearch if isinstance(oracle(bot), bool) else mdt.weightedbinsearch for oracle in member_oracles]
+def project(hi, member_oracles, proj, *, searches=None):
+    rec = mdt.to_rec(lo=proj.root, hi=new_hi(proj, hi))
+    if searches is None:
+        searches = (learn_diagsearch(f, proj.root) for f in member_oracles)
+
+    return [search(rec, oracle) for search, oracle in zip(searches, member_oracles)]
 
 
-def project_singleLambda(hi, member_oracles, pi, *, diagsearch=None):
-    new_high = new_hi(pi, hi)
-    rec = mdt.to_rec(pi.root, new_high)
-    if diagsearch is None:
-        searches = learn_diagsearch(member_oracles, pi.root)
-
-    searches = learn_diagsearch(member_oracles, pi.root)
-    return {i: ig(1)(search(rec, oracle)) for i, (search, oracle) in enumerate(zip(searches, member_oracles))}
+proj_key = fn.compose(tuple, mdt.map_tuple)
 
 
 def projections(hi, member_oracles, proj_vectors):
-    projections = (project_singleLambda(hi, member_oracles, proj)
-                   for proj in proj_vectors)
+    projections = (project(hi, member_oracles, vec) for vec in proj_vectors)
     return {proj_key(vec): proj for vec, proj in zip(proj_vectors, projections)}
 
 
-def generate_mid_lambdas(lo, hi, direc=None):
+def generate_proj_vecs(lo, hi, direc=None):
     if direc is None:
         direc = hi - lo
-    lambda_0 = ProjectAlong(lo, direc)
 
-    new_high = new_hi(lambda_0, hi)
-    lambda_mid = [midpoint(lo, new_high)]
-    yield lambda_0
+    vecs = [ProjVec(lo, direc)]
     while True:
-        projected_points = find_projected_points(lo, lambda_mid)
-        projected_points = list(fn.cat(projected_points))
-        lambda_mid = [midpoint(point, new_hi(ProjectAlong(
-            point, direc), hi)) for point in projected_points]
-        yield from (ProjectAlong(p, direc) for p in projected_points)
+        yield from vecs
+        vecs = [ProjVec(r, direc) for r in next_roots(lo, hi, vecs)]
 
 
-def find_projected_points(lo, lambda_mid):
-    return (project_along_axes(lo, mid) for _, mid in enumerate(lambda_mid))
+def project_along_axes(lo, mid):
+    return [lens(lo)[i].set(mid[i]) for i in range(len(lo))]
+
+
+def midpoint(lo, hi, proj_vec):
+    hi = new_hi(proj_vec, hi)
+    return (np.array(lo) + np.array(hi)) / 2
+
+
+def next_roots(lo, hi, prev_vecs):
+    mids = [midpoint(v.root, hi, v) for v in prev_vecs]
+    return fn.cat(project_along_axes(lo, mid) for mid in mids)
