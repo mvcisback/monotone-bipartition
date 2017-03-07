@@ -1,64 +1,80 @@
-from collections import namedtuple
+from math import isclose
 
-import funcy as fn
 import numpy as np
-from lenses import lens
 
-import multidim_threshold as mdt
+from multidim_threshold.utils import Result, Rec
 
-ProjVec = namedtuple('ProjVec', 'root direc')
+def binsearch(r: Rec, oracle, eps=1e-3):
+    """Binary search over the diagonal of the rectangle.
 
+    Returns the lower and upper approximation on the diagonal.
+    """
+    lo, hi = 0, 1
+    diag = r.top - r.bot
+    f = lambda t: r.bot + t * diag
+    feval = lambda t: oracle(f(t))
+    polarity = not feval(lo)
 
-def new_hi(pi, hi):
-    root, direc = mdt.map_array(pi)
-    v = ((np.array(hi) - root) / direc).min()
-    return root + v * direc
+    # Early termination via bounds checks
+    if polarity and feval(lo):
+        return f(lo), f(lo), f(lo)
+    elif not polarity and feval(hi):
+        return f(hi), f(hi), f(hi)
 
+    while (f(hi) - f(lo) > eps).any():
+        mid = lo + (hi - lo) / 2
+        lo, hi = (mid, hi) if feval(mid) ^ polarity else (lo, mid)
 
-def learn_search(oracle, bot):
-    kind = oracle(bot)
-    search = mdt.binsearch if isinstance(kind, bool) else mdt.weightedbinsearch
-    return fn.partial(search, oracle=oracle)
-
-
-def projections(hi, proj, *, searches):
-    rec = mdt.to_rec(lo=proj.root, hi=new_hi(proj, hi))
-    return [search(rec) for search in searches]
-
-
-proj_key = lambda x: ProjVec(*mdt.map_tuple(x))
-
-
-def generate_projections(lo, hi, member_oracles, *, direc=None, searches=None):
-    proj_vecs = generate_proj_vecs(lo, hi, direc)
-    if searches is None:
-        searches = [learn_search(f, lo) for f in member_oracles]
-
-    for vec in proj_vecs:
-        points = projections(hi, vec, searches=searches)
-        yield {proj_key(vec): p for p in points}
+    return f(lo), f(mid), f(hi)
 
 
-def generate_proj_vecs(lo, hi, direc=None):
-    lo, hi = mdt.map_array((lo, hi))
-    if direc is None:
-        direc = hi - lo
+def weightedbinsearch(r: Rec, oracle, eps=0.01):
+    lo, hi = 0, 1
+    diag = r.top - r.bot
+    f = lambda t: r.bot + t * diag
+    frobust = lambda t: oracle(f(t))
+    # They are opposite signed
+    frhi, frlo = frobust(hi), frobust(lo)
+    polarity = np.sign(frlo)
 
-    vecs = [ProjVec(lo, direc)]
-    while True:
-        yield from vecs
-        vecs = [ProjVec(r, direc) for r in next_roots(lo, hi, vecs)]
+    # Early termination via bounds checks
+    if frhi * frlo >= 0:
+        flo, fhi = f(lo), f(hi)
+        fmid = flo if frhi < 0 else fhi
+        return flo, fmid, fhi
+
+    while (f(hi) - f(lo) > eps).any():
+        ratio = frlo / (frhi - frlo)
+        mid = lo - (hi - lo) * ratio
+        frmid = frobust(mid)
+
+        # Check if we've almost crossed the boundary
+        # Note: Because diag is opposite direction of
+        # the boundary, the crossing point is unique.
+        if isclose(frmid, 0, abs_tol=eps):
+            lo, hi = mid - eps / 2, mid + eps / 2
+            break
+
+        lo, hi = (mid, hi) if frmid * frhi < 0 else (lo, mid)
+        frlo, frhi = frobust(lo), frobust(hi)
+
+    return f(lo), f(mid), f(hi)
 
 
-def project_along_axes(lo, mid):
-    return [lens(lo)[i].set(mid[i]) for i in range(len(lo))]
+def gridSearch(lo, hi, oracle, eps=0.1):
+    r = to_rec(lo, hi)
+    dim = len(r.bot)
+    basis = basis_vecs(dim)
+    polarity = not oracle(r.bot)
+    queue, mids = [(r.bot, None)], set()
+    children = lambda node: (eps * b + node for b in basis)
+    while queue:
+        node, prev = hpop(queue)
+        if not(oracle(node) ^ polarity):
+            mid = eps / 2 * (prev - node) + node
+            mids.add(tuple(list(mid)))
+        else:
+            for c in children(node):
+                hpush(queue, (c, node))
 
-
-def midpoint(lo, hi, proj_vec):
-    hi = new_hi(proj_vec, hi)
-    return (np.array(lo) + np.array(hi)) / 2
-
-
-def next_roots(lo, hi, prev_vecs):
-    mids = [midpoint(v.root, hi, v) for v in prev_vecs]
-    return fn.cat(project_along_axes(lo, mid) for mid in mids)
+    return Result(vol=eps**dim * len(mids), mids=mids, unexplored=[])
