@@ -32,7 +32,7 @@ def binsearch(r:Rec, stleval, eps=1e-3):
     elif not polarity and feval(hi):
         return f(hi), f(hi), f(hi)
 
-    while f(hi) - f(lo) > eps :
+    while (f(hi) - f(lo) > eps).any() :
         mid = lo + (hi - lo) / 2
         lo, hi = (mid, hi) if feval(mid) ^ polarity else (lo, mid)
 
@@ -56,7 +56,7 @@ def weightedbinsearch(r: Rec, robust, eps=0.01) -> (array, array, array):
         return flo, fmid, fhi
 
 
-    while f(hi) - f(lo) > eps :
+    while (f(hi) - f(lo) > eps).any() :
         ratio = frlo / (frhi - frlo)
         mid = lo - (hi - lo)*ratio
         frmid = frobust(mid)
