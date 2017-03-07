@@ -1,3 +1,4 @@
+from operator import itemgetter as ig
 from collections import namedtuple
 
 import funcy as fn
@@ -18,12 +19,20 @@ def clip_rec(pi, hi):
 def learn_search(oracle, bot):
     kind = oracle(bot)
     search = mdt.binsearch if isinstance(kind, bool) else mdt.weightedbinsearch
-    return fn.partial(search, oracle=oracle)
+    return fn.compose(ig(1), fn.partial(search, oracle=oracle))
 
 
 def projections(hi, proj, *, searches):
     rec = mdt.to_rec(lo=proj.root, hi=clip_rec(proj, hi))
     return [search(rec) for search in searches]
+
+
+def generate_boundary_approxes(lo, hi, member_oracles, **kwargs):
+    boundaries = [set() for _ in member_oracles]
+    for points in generate_projections(lo, hi, member_oracles, **kwargs):
+        for b, p in zip(boundaries, points):
+            b.add(tuple(p))
+        yield boundaries
 
 
 def generate_projections(lo, hi, member_oracles, *, direc=None, searches=None):
