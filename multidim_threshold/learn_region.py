@@ -7,7 +7,7 @@ import numpy as np
 from numpy import array
 import funcy as fn
 
-from multidim_threshold.utils import Rec, to_rec, volume
+from multidim_threshold.utils import Result, Rec, to_rec, volume, basis_vecs
 from multidim_threshold.search import binsearch, weightedbinsearch
 
 
@@ -23,19 +23,6 @@ def forward_cone(p: array, r: Rec) -> Rec:
 def backward_cone(p: array, r: Rec) -> Rec:
     """Computes the backward cone from point p."""
     return Rec(r.bot, p)
-
-
-def basis_vec(i, dim):
-    """Basis vector i"""
-    a = np.zeros(dim)
-    a[i] = 1.0
-    return a
-
-
-@fn.memoize
-def basis_vecs(dim):
-    """Standard orthonormal basis."""
-    return [basis_vec(i, dim) for i in range(dim)]
 
 
 def generate_incomparables(mid, r):

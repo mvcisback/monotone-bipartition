@@ -26,17 +26,13 @@ def projections(hi, proj, *, searches):
     return [search(rec) for search in searches]
 
 
-proj_key = lambda x: ProjVec(*mdt.map_tuple(x))
-
-
 def generate_projections(lo, hi, member_oracles, *, direc=None, searches=None):
     proj_vecs = generate_proj_vecs(lo, hi, direc)
     if searches is None:
         searches = [learn_search(f, lo) for f in member_oracles]
 
     for vec in proj_vecs:
-        points = projections(hi, vec, searches=searches)
-        yield {proj_key(vec): p for p in points}
+        yield projections(hi, vec, searches=searches)
 
 
 def generate_proj_vecs(lo, hi, direc=None):

@@ -1,8 +1,9 @@
+from heapq import heappush as hpush, heappop as hpop
 from math import isclose
 
 import numpy as np
 
-from multidim_threshold.utils import Result, Rec
+from multidim_threshold.utils import Result, Rec, to_rec, basis_vecs
 
 def binsearch(r: Rec, oracle, eps=1e-3):
     """Binary search over the diagonal of the rectangle.
