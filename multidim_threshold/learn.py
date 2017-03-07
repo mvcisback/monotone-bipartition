@@ -11,11 +11,13 @@ import funcy as fn
 Rec = namedtuple("Rec", "bot top")
 Result = namedtuple("Result", "vol mids unexplored")
 
+
 def to_rec(lo, hi):
     lo, hi = (list(lo), list(hi)) if isinstance(lo, Iterable) else ([lo], [hi])
     return Rec(np.array(lo), np.array(hi))
 
-def binsearch(r:Rec, stleval, eps=1e-3):
+
+def binsearch(r: Rec, stleval, eps=1e-3):
     """Binary search over the diagonal of the rectangle.
 
     Returns the lower and upper approximation on the diagonal.
@@ -32,7 +34,7 @@ def binsearch(r:Rec, stleval, eps=1e-3):
     elif not polarity and feval(hi):
         return f(hi), f(hi), f(hi)
 
-    while (f(hi) - f(lo) > eps).any() :
+    while (f(hi) - f(lo) > eps).any():
         mid = lo + (hi - lo) / 2
         lo, hi = (mid, hi) if feval(mid) ^ polarity else (lo, mid)
 
@@ -48,29 +50,26 @@ def weightedbinsearch(r: Rec, robust, eps=0.01) -> (array, array, array):
     frhi, frlo = frobust(hi), frobust(lo)
     polarity = np.sign(frlo)
 
-
     # Early termination via bounds checks
     if frhi * frlo >= 0:
         flo, fhi = f(lo), f(hi)
         fmid = flo if frhi < 0 else fhi
         return flo, fmid, fhi
 
-
-    while (f(hi) - f(lo) > eps).any() :
+    while (f(hi) - f(lo) > eps).any():
         ratio = frlo / (frhi - frlo)
-        mid = lo - (hi - lo)*ratio
+        mid = lo - (hi - lo) * ratio
         frmid = frobust(mid)
 
         # Check if we've almost crossed the boundary
         # Note: Because diag is opposite direction of
         # the boundary, the crossing point is unique.
         if isclose(frmid, 0, abs_tol=eps):
-            lo, hi = mid - eps/2, mid + eps/2
+            lo, hi = mid - eps / 2, mid + eps / 2
             break
 
         lo, hi = (mid, hi) if frmid * frhi < 0 else (lo, mid)
         frlo, frhi = frobust(lo), frobust(hi)
-
 
     return f(lo), f(mid), f(hi)
 
@@ -81,11 +80,11 @@ def gridSearch(lo, hi, is_member, eps=0.1):
     basis = basis_vecs(dim)
     polarity = not is_member(r.bot)
     queue, mids = [(r.bot, None)], set()
-    children = lambda node: (eps*b + node for b in basis)
+    children = lambda node: (eps * b + node for b in basis)
     while queue:
         node, prev = hpop(queue)
         if not(is_member(node) ^ polarity):
-            mid = eps/2*(prev-node) + node
+            mid = eps / 2 * (prev - node) + node
             mids.add(tuple(list(mid)))
         else:
             for c in children(node):
@@ -96,6 +95,7 @@ def gridSearch(lo, hi, is_member, eps=0.1):
 
 def to_tuple(r: Rec):
     return tuple(map(tuple, r))
+
 
 def forward_cone(p: array, r: Rec) -> Rec:
     """Computes the forward cone from point p."""
@@ -129,7 +129,7 @@ def generate_incomparables(mid, r):
     basis = basis_vecs(dim)
     for i in range(1, dim):
         for es in combinations(basis, i):
-            vs = tuple(sum((diag @e)*e for e in es) for diag in diags)
+            vs = tuple(sum((diag @e) * e for e in es) for diag in diags)
             yield Rec(*[base + v for base, v in zip(bases, vs)])
 
 
@@ -142,7 +142,7 @@ def subdivide(low, mid, high, r: Rec) -> [Rec]:
 
 
 def volume(rec: Rec):
-    return np.prod(np.abs(rec.bot-rec.top))
+    return np.prod(np.abs(rec.bot - rec.top))
 
 
 def multidim_search(lo, hi, is_member, diagsearch=None):

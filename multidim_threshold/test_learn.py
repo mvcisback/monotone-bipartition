@@ -14,7 +14,7 @@ i0 = set()
 n0 = np.array([1])
 F0 = lambda x: x@n0 > 0
 
-r1 = mdt.Rec(np.array([-1,-2]), np.array([1,2]))
+r1 = mdt.Rec(np.array([-1, -2]), np.array([1, 2]))
 p1 = np.array([0, 0])
 f1 = mdt.Rec(np.array([0, 0]), np.array([1, 2]))
 b1 = mdt.Rec(np.array([-1, -2]), np.array([0, 0]))
@@ -22,18 +22,19 @@ i1 = {mdt.Rec((0, -2), (1, 0)), mdt.Rec((-1, 0), (0, 2))}
 n1 = np.array([1, 1]) / np.sqrt(2)
 F1 = lambda x: x @n1 > 0
 
-r2 = mdt.Rec(np.array([-2,-1, -2]), np.array([3,1, 3]))
+r2 = mdt.Rec(np.array([-2, -1, -2]), np.array([3, 1, 3]))
 p2 = np.array([0, 0, 0])
 f2 = mdt.Rec(np.array([0, 0, 0]), np.array([3, 1, 3]))
 b2 = mdt.Rec(np.array([-2, -1, -2]), np.array([0, 0, 0]))
 n2 = np.array([1, 1, 1]) / np.sqrt(3)
 F2 = lambda x: x @n2 > 0
 
-ex1d = (lambda p: p > 5.435, lambda p: p - 5.435, 
+ex1d = (lambda p: p > 5.435, lambda p: p - 5.435,
         mdt.Rec(np.array([-9]), np.array([9])))
 
 
 class TestMultidimSearch(unittest.TestCase):
+
     @params((r0, 2), (r1, 8), (r2, 50))
     def test_volume(self, r, vol):
         self.assertEqual(mdt.volume(r), vol)
@@ -53,7 +54,7 @@ class TestMultidimSearch(unittest.TestCase):
     @params((r0, p0, i0), (r1, p1, i1))
     def test_incomparables(self, r, mid, i):
         self.assertEqual(set(map(mdt.to_tuple,
-            mdt.generate_incomparables(mid, r))), i)
+                                 mdt.generate_incomparables(mid, r))), i)
 
     @params((r0, F0), (r1, F1))
     def test_binsearch(self, r, f):
@@ -69,7 +70,6 @@ class TestMultidimSearch(unittest.TestCase):
         res = mdt.gridSearch(rec.bot, rec.top, f, eps=0.01)
         self.assertAlmostEqual(list(res.mids)[0][0], float(mid2), places=2)
 
-
     @params(ex1d)
     def test_polarity_invariant_1d(self, f, r, rec):
         neg_f = lambda p: not f(p)
@@ -82,7 +82,7 @@ class TestMultidimSearch(unittest.TestCase):
         _, mid1, _ = mdt.weightedbinsearch(rec, r, eps=0.0001)
         _, mid2, _ = mdt.weightedbinsearch(rec, neg_r, eps=0.0001)
         self.assertAlmostEqual(float(mid1 - mid2), 0, places=3)
-        
+
         lo, hi = rec.bot, rec.top
         mid1 = list(mdt.gridSearch(lo, hi, f, eps=0.01).mids)[0][0]
         mid2 = list(mdt.gridSearch(lo, hi, neg_f, eps=0.01).mids)[0][0]
