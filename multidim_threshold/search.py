@@ -15,28 +15,32 @@ def new_hi(pi, hi):
     return root + v * direc
 
 
-def learn_diagsearch(oracle, bot):
-    bot_val = oracle(bot)
-    return mdt.binsearch if isinstance(bot_val, bool) else mdt.weightedbinsearch
+def learn_search(oracle, bot):
+    kind = oracle(bot)
+    search = mdt.binsearch if isinstance(kind, bool) else mdt.weightedbinsearch
+    return fn.partial(search, oracle=oracle)
 
 
-def project(hi, member_oracles, proj, *, searches=None):
+def projections(hi, proj, *, searches):
     rec = mdt.to_rec(lo=proj.root, hi=new_hi(proj, hi))
+    return [search(rec) for search in searches]
+
+
+proj_key = lambda x: ProjVec(*mdt.map_tuple(x))
+
+
+def generate_projections(lo, hi, member_oracles, *, direc=None, searches=None):
+    proj_vecs = generate_proj_vecs(lo, hi, direc)
     if searches is None:
-        searches = (learn_diagsearch(f, proj.root) for f in member_oracles)
+        searches = [learn_search(f, lo) for f in member_oracles]
 
-    return [search(rec, oracle) for search, oracle in zip(searches, member_oracles)]
-
-
-proj_key = fn.compose(tuple, mdt.map_tuple)
-
-
-def projections(hi, member_oracles, proj_vectors):
-    projections = (project(hi, member_oracles, vec) for vec in proj_vectors)
-    return {proj_key(vec): proj for vec, proj in zip(proj_vectors, projections)}
+    for vec in proj_vecs:
+        points = projections(hi, vec, searches=searches)
+        yield {proj_key(vec): p for p in points}
 
 
 def generate_proj_vecs(lo, hi, direc=None):
+    lo, hi = mdt.map_array((lo, hi))
     if direc is None:
         direc = hi - lo
 

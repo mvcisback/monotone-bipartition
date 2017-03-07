@@ -13,7 +13,7 @@ from multidim_threshold.utils import Rec, to_rec
 Result = namedtuple("Result", "vol mids unexplored")
 
 
-def binsearch(r: Rec, stleval, eps=1e-3):
+def binsearch(r: Rec, oracle, eps=1e-3):
     """Binary search over the diagonal of the rectangle.
 
     Returns the lower and upper approximation on the diagonal.
@@ -21,7 +21,7 @@ def binsearch(r: Rec, stleval, eps=1e-3):
     lo, hi = 0, 1
     diag = r.top - r.bot
     f = lambda t: r.bot + t * diag
-    feval = lambda t: stleval(f(t))
+    feval = lambda t: oracle(f(t))
     polarity = not feval(lo)
 
     # Early termination via bounds checks
@@ -37,11 +37,11 @@ def binsearch(r: Rec, stleval, eps=1e-3):
     return f(lo), f(mid), f(hi)
 
 
-def weightedbinsearch(r: Rec, robust, eps=0.01) -> (array, array, array):
+def weightedbinsearch(r: Rec, oracle, eps=0.01) -> (array, array, array):
     lo, hi = 0, 1
     diag = r.top - r.bot
     f = lambda t: r.bot + t * diag
-    frobust = lambda t: robust(f(t))
+    frobust = lambda t: oracle(f(t))
     # They are opposite signed
     frhi, frlo = frobust(hi), frobust(lo)
     polarity = np.sign(frlo)
@@ -70,16 +70,16 @@ def weightedbinsearch(r: Rec, robust, eps=0.01) -> (array, array, array):
     return f(lo), f(mid), f(hi)
 
 
-def gridSearch(lo, hi, is_member, eps=0.1):
+def gridSearch(lo, hi, oracle, eps=0.1):
     r = to_rec(lo, hi)
     dim = len(r.bot)
     basis = basis_vecs(dim)
-    polarity = not is_member(r.bot)
+    polarity = not oracle(r.bot)
     queue, mids = [(r.bot, None)], set()
     children = lambda node: (eps * b + node for b in basis)
     while queue:
         node, prev = hpop(queue)
-        if not(is_member(node) ^ polarity):
+        if not(oracle(node) ^ polarity):
             mid = eps / 2 * (prev - node) + node
             mids.add(tuple(list(mid)))
         else:
