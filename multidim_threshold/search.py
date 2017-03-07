@@ -43,7 +43,6 @@ def weightedbinsearch(r: Rec, oracle, eps=0.01):
         flo, fhi = f(lo), f(hi)
         fmid = flo if frhi < 0 else fhi
         return flo, fmid, fhi
-
     while (f(hi) - f(lo) > eps).any():
         ratio = frlo / (frhi - frlo)
         mid = lo - (hi - lo) * ratio
