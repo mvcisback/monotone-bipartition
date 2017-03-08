@@ -9,7 +9,6 @@ import random
 import multidim_threshold as mdt
 
 ProjVec = namedtuple('ProjVec', 'root direc')
-t_proj = lambda lo, hi, i : lo[i] + (hi[i] - lo[i])*random.uniform(0,1)
 
 
 def clip_rec(pi, hi):
@@ -37,12 +36,10 @@ def generate_boundary_approxes(lo, hi, member_oracles, **kwargs):
         yield boundaries
 
 
-def generate_projections(lo, hi, member_oracles, *, direc=None, searches=None, random=None):
-    axes_hi = generate_axes_intersects(lo, hi, member_oracles)
-    if random is None:
-        proj_vecs = generate_proj_vecs(lo, axes_hi, direc)
-    else:
-        proj_vecs = generate_t_proj_vecs(lo, axes_hi, direc)
+def generate_projections(lo, hi, member_oracles, *, direc=None, searches=None, random=False):
+    axis_hi = axes_intersects(lo, hi, member_oracles, random=False) if random else hi
+
+    proj_vecs = generate_proj_vecs(lo, axis_hi, direc, random)
 
     if searches is None:
         searches = [learn_search(f, lo) for f in member_oracles]
@@ -51,7 +48,7 @@ def generate_projections(lo, hi, member_oracles, *, direc=None, searches=None, r
         yield projections(hi, vec, searches=searches)
 
 
-def generate_proj_vecs(lo, hi, direc=None):
+def generate_proj_vecs(lo, hi, direc=None, random=False):
     lo, hi = mdt.map_array((lo, hi))
     if direc is None:
         direc = hi - lo
@@ -59,23 +56,16 @@ def generate_proj_vecs(lo, hi, direc=None):
     vecs = [ProjVec(lo, direc)]
     while True:
         yield from vecs
-        vecs = [ProjVec(r, direc) for r in next_roots(lo, hi, vecs)]
+        vecs = [ProjVec(random_root(lo, axis_hi), direc) if random else ProjVec(r, direc) for r in next_roots(lo, hi, vecs)]
 
-def generate_axes_intersects(lo, hi, member_oracles, *, searches=None):
+
+def axes_intersects(lo, hi, member_oracles, *, searches=None):
+    if searches is None:
+        searches = [learn_search(f, lo) for f in member_oracles]
     lo, hi = mdt.map_array((lo, hi))
     direc = mdt.basis_vecs(len(lo))
-    mids = np.array([fn.nth(0, generate_projections(lo, hi, member_oracles, direc=dir)) for dir in direc])
+    mids = np.array([fn.first(generate_projections(lo, hi, member_oracles, direc=d)) for d in direc])
     return [axes_mid[:,i].min() for i, axes_mid in enumerate(mids)]
-
-def generate_t_proj_vecs(lo, hi, direc=None):
-    lo, hi = mdt.map_array((lo, hi))
-    if direc is None:
-        direc = hi - lo
-
-    vecs = [ProjVec(lo, direc)]
-    while True:
-        yield from vecs
-        vecs = [ProjVec(random_root(lo, hi), direc)]
 
 def project_along_axes(lo, mid):
     return [lens(lo)[i].set(mid[i]) for i in range(len(lo))]
@@ -87,6 +77,7 @@ def midpoint(lo, hi, proj_vec):
 
 def random_root(lo, hi):
     dim = len(lo)
+    t_proj = lambda lo, hi, i: lo[i] + (hi[i] - lo[i]) * random.uniform(0, 1)
     root_axis = random.randint(0, dim-1)
     return [0 if i == root_axis else t_proj(lo, hi, i) for i in range(dim)]
 
