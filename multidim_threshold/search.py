@@ -5,6 +5,7 @@ import numpy as np
 
 from multidim_threshold.utils import Result, Rec, to_rec, basis_vecs
 
+
 def binsearch(r: Rec, oracle, eps=1e-3):
     """Binary search over the diagonal of the rectangle.
 
