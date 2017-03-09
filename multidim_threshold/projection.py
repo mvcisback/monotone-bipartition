@@ -41,7 +41,8 @@ def generate_projections(lo, hi, member_oracles, *, direc=None, searches=None, r
         searches = [learn_search(f, lo) for f in member_oracles]
 
     axis_hi = axes_intersects(lo, hi, member_oracles, searches) if random else hi
-    proj_vecs = generate_proj_vecs(lo, axis_hi, direc, random)
+    root_func = random_root if random else next_roots
+    proj_vecs = generate_proj_vecs(lo, axis_hi, direc, root_func)
 
     for vec in proj_vecs:
         yield projections(hi, vec, searches=searches)
@@ -78,4 +79,4 @@ def random_root(lo, hi, vecs):
     dim = len(lo)
     t_proj = lambda lo, hi, i: lo[i] + (hi[i] - lo[i]) * random.uniform(0, 1)
     root_axis = random.randint(0, dim-1)
-    yield [0 if i == root_axis else t_proj(lo, hi, i) for i in range(dim)]
+    yield [lo[i] if i == root_axis else t_proj(lo, hi, i) for i in range(dim)]
