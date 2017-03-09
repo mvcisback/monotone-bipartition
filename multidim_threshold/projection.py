@@ -13,7 +13,8 @@ ProjVec = namedtuple('ProjVec', 'root direc')
 
 def clip_rec(pi, hi):
     root, direc = mdt.map_array(pi)
-    v = ((np.array(hi) - root) / direc).min()
+    mask = direc != 0
+    v = ((hi - root)[mask] / direc[mask]).min()
     return root + v * direc
 
 
@@ -23,7 +24,7 @@ def learn_search(oracle, bot):
     return fn.compose(ig(1), fn.partial(search, oracle=oracle))
 
 
-def projections(hi, proj, *, searches):
+def projections(hi, proj, searches):
     rec = mdt.to_rec(lo=proj.root, hi=clip_rec(proj, hi))
     return [search(rec) for search in searches]
 
@@ -40,13 +41,17 @@ def generate_projections(lo, hi, member_oracles, *, direc=None, searches=None, r
     if searches is None:
         searches = [learn_search(f, lo) for f in member_oracles]
 
-    axis_hi = axes_intersects(lo, hi, member_oracles,
-                              searches=searches) if random else hi
+    lo, hi = mdt.map_array((lo, hi))
+    hi = axes_intersects(lo, hi, searches) if random else hi
+
+    if direc is None:
+        direc = hi - lo
+
     root_func = random_root if random else next_roots
-    proj_vecs = generate_proj_vecs(lo, axis_hi, direc, root_func)
+    proj_vecs = generate_proj_vecs(lo, hi, direc, root_func)
 
     for vec in proj_vecs:
-        yield projections(hi, vec, searches=searches)
+        yield projections(hi, vec, searches)
 
 
 def next_roots(lo, hi, prev_vecs):
@@ -55,22 +60,15 @@ def next_roots(lo, hi, prev_vecs):
 
 
 def generate_proj_vecs(lo, hi, direc=None, next_roots=next_roots):
-    lo, hi = mdt.map_array((lo, hi))
-    if direc is None:
-        direc = hi - lo
-
     vecs = [ProjVec(lo, direc)]
     while True:
         yield from vecs
         vecs = [ProjVec(r, direc) for r in next_roots(lo, hi, vecs)]
 
 
-def axes_intersects(lo, hi, member_oracles, *, searches=None):
-    lo, hi = mdt.map_array((lo, hi))
-    direc = mdt.basis_vecs(len(lo))
-    mids = np.array([fn.first(generate_projections(
-        lo, hi, member_oracles, direc=d, searches=searches, random=False)) for d in direc])
-    return [axes_mid[:, i].min() for i, axes_mid in enumerate(mids)]
+def axes_intersects(lo, hi, searches):
+    intersects = lambda b: b*np.array(projections(hi, ProjVec(lo, b), searches))
+    return sum(i.min(axis=0) for i in map(intersects, mdt.basis_vecs(len(lo))))
 
 
 def project_along_axes(lo, mid):
@@ -78,8 +76,7 @@ def project_along_axes(lo, mid):
 
 
 def midpoint(lo, hi, proj_vec):
-    hi = clip_rec(proj_vec, hi)
-    return (np.array(lo) + np.array(hi)) / 2
+    return (lo + clip_rec(proj_vec, hi)) / 2
 
 
 def random_root(lo, hi, vecs):
