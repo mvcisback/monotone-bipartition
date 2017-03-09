@@ -8,6 +8,7 @@ from numpy import array
 import funcy as fn
 
 from multidim_threshold.utils import Result, Rec, to_rec, volume, basis_vecs
+
 from multidim_threshold.search import binsearch, weightedbinsearch
 
 
