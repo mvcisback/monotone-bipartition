@@ -20,10 +20,11 @@ def binsearch(r: Rec, oracle, eps=1e-3):
 
     # Early termination via bounds checks
     if polarity and feval(lo):
-        return f(lo), f(lo), f(lo)
+        return f(lo), None, f(lo)
     elif not polarity and feval(hi):
-        return f(hi), f(hi), f(hi)
+        return f(hi), None, f(hi)
 
+    mid = lo
     while (f(hi) - f(lo) > eps).any():
         mid = lo + (hi - lo) / 2
         lo, hi = (mid, hi) if feval(mid) ^ polarity else (lo, mid)
@@ -44,7 +45,9 @@ def weightedbinsearch(r: Rec, oracle, eps=0.01):
     if frhi * frlo >= 0:
         flo, fhi = f(lo), f(hi)
         fmid = flo if frhi < 0 else fhi
-        return flo, fmid, fhi
+        return flo, None, fhi
+
+    mid = lo
     while (f(hi) - f(lo) > eps).any():
         ratio = frlo / (frhi - frlo)
         mid = lo - (hi - lo) * ratio

@@ -33,7 +33,8 @@ def generate_boundary_approxes(lo, hi, member_oracles, **kwargs):
     boundaries = [set() for _ in member_oracles]
     for points in generate_projections(lo, hi, member_oracles, **kwargs):
         for b, p in zip(boundaries, points):
-            b.add(tuple(p))
+            if p is not None:
+                b.add(tuple(p))
         yield boundaries
 
 
@@ -67,7 +68,8 @@ def generate_proj_vecs(lo, hi, direc=None, next_roots=next_roots):
 
 
 def axes_intersects(lo, hi, searches):
-    intersects = lambda b: b*np.array(projections(hi, ProjVec(lo, b), searches))
+    intersects = lambda b: b * \
+        np.array(projections(hi, ProjVec(lo, b), searches))
     return sum(i.min(axis=0) for i in map(intersects, mdt.basis_vecs(len(lo))))
 
 

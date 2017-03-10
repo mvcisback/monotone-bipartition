@@ -62,6 +62,8 @@ def multidim_search(lo, hi, is_member, diagsearch=None):
         _, rec = hpop(queue)
         rec = Rec(*map(np.array, rec))
         low, mid, high = diagsearch(rec, is_member)
+        if mid is None:
+            continue
         backward, forward, incomparables = subdivide(low, mid, high, rec)
         mids.add(tuple(list(mid)))
 
