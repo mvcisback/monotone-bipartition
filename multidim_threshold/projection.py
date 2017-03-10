@@ -43,7 +43,8 @@ def generate_projections(lo, hi, member_oracles, *, direc=None, searches=None, r
         searches = [learn_search(f, lo) for f in member_oracles]
 
     lo, hi = mdt.map_array((lo, hi))
-    hi = axes_intersects(lo, hi, searches) if random else hi
+    # TODO: this seems to be broken
+    #hi = axes_intersects(lo, hi, searches if random else hi
 
     if direc is None:
         direc = hi - lo

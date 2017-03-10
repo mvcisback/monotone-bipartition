@@ -8,7 +8,6 @@ from numpy import array
 import funcy as fn
 
 from multidim_threshold.utils import Result, Rec, to_rec, volume, basis_vecs
-
 from multidim_threshold.search import binsearch, weightedbinsearch
 
 
@@ -41,10 +40,8 @@ def generate_incomparables(mid, r):
 
 def subdivide(low, mid, high, r: Rec) -> [Rec]:
     """Computes the set of incomparable cones of point p."""
-    forward = forward_cone(high, r)
-    backward = backward_cone(low, r)
     incomparables = list(generate_incomparables(mid, r))
-    return backward, forward, incomparables
+    return backward_cone(low, r), forward_cone(high, r), incomparables
 
 
 def multidim_search(lo, hi, is_member, diagsearch=None):
@@ -56,8 +53,7 @@ def multidim_search(lo, hi, is_member, diagsearch=None):
         diagsearch = binsearch if bool_oracle else weightedbinsearch
 
     initial_vol = unknown_vol = volume(rec)
-    queue = [(unknown_vol, rec)]
-    mids = set()
+    queue, mids = [(unknown_vol, rec)], set()
     while queue:
         _, rec = hpop(queue)
         rec = Rec(*map(np.array, rec))
