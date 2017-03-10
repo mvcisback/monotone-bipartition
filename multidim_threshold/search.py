@@ -1,9 +1,10 @@
-from heapq import heappush as hpush, heappop as hpop
+from itertools import repeat
+from collections import deque
 from math import isclose
 
 import numpy as np
 
-from multidim_threshold.utils import Result, Rec, to_rec, basis_vecs
+from multidim_threshold.utils import Result, Rec, to_rec, basis_vecs, map_tuple
 
 
 def binsearch(r: Rec, oracle, eps=1e-3):
@@ -67,15 +68,14 @@ def gridSearch(lo, hi, oracle, eps=0.1):
     dim = len(r.bot)
     basis = basis_vecs(dim)
     polarity = not oracle(r.bot)
-    queue, mids = [(r.bot, None)], set()
+    queue, mids = deque([(r.bot, None)]), set()
     children = lambda node: (eps * b + node for b in basis)
     while queue:
-        node, prev = hpop(queue)
+        node, prev = queue.pop()
         if not(oracle(node) ^ polarity):
             mid = eps / 2 * (prev - node) + node
             mids.add(tuple(list(mid)))
         else:
-            for c in children(node):
-                hpush(queue, (c, node))
+            queue.extendleft(zip(children(node), repeat(node)))
 
     return Result(vol=eps**dim * len(mids), mids=mids, unexplored=[])
