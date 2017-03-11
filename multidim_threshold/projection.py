@@ -87,3 +87,17 @@ def random_root(lo, hi, vecs):
     t_proj = lambda lo, hi, i: lo[i] + (hi[i] - lo[i]) * random.uniform(0, 1)
     root_axis = random.randint(0, dim - 1)
     yield [lo[i] if i == root_axis else t_proj(lo, hi, i) for i in range(dim)]
+
+
+def find_boundaries(r: mdt.Rec, search) -> mdt.Rec:
+    diag = r.top - r.bot
+    dim = len(r.bot)
+    zero_vec = tuple(np.zeros_like(r.bot))
+    basis = {tuple(b) for b in mdt.basis_vecs(dim)}
+    axis_frame = ((b, r.bot + diag*np.array(b)) for b in 
+                  fn.chain(basis, [zero_vec]))
+    proj_vecs = list(fn.cat([[ProjVec(r, b2) for b2 in basis - {b}]
+                             for b, r in axis_frame]))
+    intersects = (projections(r.top, v, [search])[0] for v in proj_vecs)
+    intersects = np.array([m for _, m, _ in intersects if m is not None])
+    return mdt.Rec(intersects.min(axis=0), intersects.max(axis=1))

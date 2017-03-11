@@ -4,7 +4,7 @@ import funcy as fn
 import numpy as np
 from lenses import lens
 
-Result = namedtuple("Result", "vol mids unexplored")
+Result = namedtuple("Result", "mids unexplored")
 Rec = namedtuple("Rec", "bot top")
 
 map_array = fn.partial(map, np.array)

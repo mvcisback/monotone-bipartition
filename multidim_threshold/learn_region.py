@@ -9,6 +9,7 @@ import funcy as fn
 
 from multidim_threshold.utils import Result, Rec, to_rec, volume, basis_vecs
 from multidim_threshold.search import binsearch, weightedbinsearch
+from multidim_threshold.projection import find_boundaries
 
 
 def to_tuple(r: Rec):
@@ -51,22 +52,22 @@ def multidim_search(lo, hi, is_member, diagsearch=None):
     if diagsearch is None:
         bool_oracle = isinstance(is_member(rec.bot), bool)
         diagsearch = binsearch if bool_oracle else weightedbinsearch
+        diagsearch = fn.partial(diagsearch, oracle=is_member)
+
+    rec = find_boundaries(rec, diagsearch)
 
     initial_vol = unknown_vol = volume(rec)
     queue, mids = [(unknown_vol, rec)], set()
     while queue:
         _, rec = hpop(queue)
         rec = Rec(*map(np.array, rec))
-        low, mid, high = diagsearch(rec, is_member)
+        low, mid, high = diagsearch(rec)
         if mid is None:
-            continue
+            mid = low
         backward, forward, incomparables = subdivide(low, mid, high, rec)
         mids.add(tuple(list(mid)))
 
         for r in incomparables:
             hpush(queue, (-volume(r), to_tuple(r)))
 
-        # not correct, since is doesn't include upward closure's area
-        unknown_vol -= volume(backward) + volume(forward)
-        est_pct_vol = unknown_vol / initial_vol
-        yield Result(est_pct_vol, mids, queue)
+        yield Result(mids, queue)
