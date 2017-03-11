@@ -55,9 +55,8 @@ def multidim_search(lo, hi, is_member, diagsearch=None):
         diagsearch = fn.partial(diagsearch, oracle=is_member)
 
     rec = find_boundaries(rec, diagsearch)
-
-    initial_vol = unknown_vol = volume(rec)
-    queue, mids = [(unknown_vol, rec)], set()
+    queue, mids = [(-volume(rec), to_tuple(rec))], set()
+    yield Result(mids, queue)
     while queue:
         _, rec = hpop(queue)
         rec = Rec(*map(np.array, rec))

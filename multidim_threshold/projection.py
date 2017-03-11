@@ -100,4 +100,4 @@ def find_boundaries(r: mdt.Rec, search) -> mdt.Rec:
                              for b, r in axis_frame]))
     intersects = (projections(r.top, v, [search])[0] for v in proj_vecs)
     intersects = np.array([m for _, m, _ in intersects if m is not None])
-    return mdt.Rec(intersects.min(axis=0), intersects.max(axis=1))
+    return mdt.Rec(intersects.min(axis=0), intersects.max(axis=0))
