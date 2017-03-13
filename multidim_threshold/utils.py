@@ -31,3 +31,8 @@ def basis_vec(i, dim):
 def basis_vecs(dim):
     """Standard orthonormal basis."""
     return [basis_vec(i, dim) for i in range(dim)]
+
+
+def bounding_rec(recs):
+    recs = np.array(list(recs))
+    return Rec(recs.min(axis=0), recs.max(axis=0))

@@ -45,14 +45,14 @@ def subdivide(low, mid, high, r: Rec) -> [Rec]:
     return backward_cone(low, r), forward_cone(high, r), incomparables
 
 
-def multidim_search(lo, hi, is_member, diagsearch=None):
+def multidim_search(lo, hi, oracle, diagsearch=None):
     """Generator for iteratively approximating the oracle's threshold."""
     rec = to_rec(lo, hi)
 
     if diagsearch is None:
-        bool_oracle = isinstance(is_member(rec.bot), bool)
+        bool_oracle = isinstance(oracle(rec.bot), bool)
         diagsearch = binsearch if bool_oracle else weightedbinsearch
-        diagsearch = fn.partial(diagsearch, oracle=is_member)
+        diagsearch = fn.partial(diagsearch, oracle=oracle)
 
     rec = find_boundaries(rec, diagsearch)
     queue, mids = [(-volume(rec), to_tuple(rec))], set()
@@ -61,11 +61,13 @@ def multidim_search(lo, hi, is_member, diagsearch=None):
         _, rec = hpop(queue)
         rec = Rec(*map(np.array, rec))
         low, mid, high = diagsearch(rec)
+        
         if mid is None:
             mid = low
+
         backward, forward, incomparables = subdivide(low, mid, high, rec)
         mids.add(tuple(list(mid)))
-
+        
         for r in incomparables:
             hpush(queue, (-volume(r), to_tuple(r)))
 
