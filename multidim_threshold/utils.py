@@ -4,7 +4,7 @@ import funcy as fn
 import numpy as np
 from lenses import lens
 
-Result = namedtuple("Result", "mids unexplored")
+Result = namedtuple("Result", "unexplored")
 Rec = namedtuple("Rec", "bot top")
 
 map_array = fn.partial(map, np.array)
@@ -36,3 +36,14 @@ def basis_vecs(dim):
 def bounding_rec(recs):
     recs = np.array(list(recs))
     return Rec(recs.min(axis=0), recs.max(axis=0))
+
+
+def naive_hausdorff(res1, res2):
+    X, Y = res1.mids, res2.mids
+    return max(_d(X, Y), _d(Y, X)) 
+
+def _d(X, Y):
+    return max(d(x, Y) for x in X)
+
+def d(x, Y):
+    return min(np.linalg.norm(np.array(x) - np.array(y), np.inf) for y in Y)

@@ -1,5 +1,4 @@
 """Implements muli-dimensional threshold discovery via binary search."""
-from collections import namedtuple
 from itertools import combinations
 from heapq import heappush as hpush, heappop as hpop
 
@@ -45,7 +44,15 @@ def subdivide(low, mid, high, r: Rec) -> [Rec]:
     return backward_cone(low, r), forward_cone(high, r), incomparables
 
 
-def multidim_search(lo, hi, oracle, diagsearch=None):
+def refine(rec: Rec, diagsearch):
+    low, mid, high = diagsearch(rec)
+    if mid is None:
+        mid = low
+    _, _, incomparables = subdivide(low, mid, high, rec)
+    return incomparables
+    
+
+def _refiner(lo, hi, oracle, diagsearch=None):
     """Generator for iteratively approximating the oracle's threshold."""
     rec = to_rec(lo, hi)
 
@@ -54,21 +61,20 @@ def multidim_search(lo, hi, oracle, diagsearch=None):
         diagsearch = binsearch if bool_oracle else weightedbinsearch
         diagsearch = fn.partial(diagsearch, oracle=oracle)
 
-    rec = find_boundaries(rec, diagsearch)
-    queue, mids = [(-volume(rec), to_tuple(rec))], set()
-    yield Result(mids, queue)
+    rec = yield [find_boundaries(rec, diagsearch)]
+    while True:
+        rec = yield refine(rec, diagsearch)
+
+
+def volume_guided_refinement(lo, hi, oracle, diagsearch=None):
+    """Generator for iteratively approximating the oracle's threshold."""
+    refiner = _refiner(lo, hi, oracle, diagsearch)
+    rec = next(refiner)
+    queue = [(-volume(rec), to_tuple(rec))]
+
     while queue:
+        yield Result(queue)
         _, rec = hpop(queue)
-        rec = Rec(*map(np.array, rec))
-        low, mid, high = diagsearch(rec)
-        
-        if mid is None:
-            mid = low
-
-        backward, forward, incomparables = subdivide(low, mid, high, rec)
-        mids.add(tuple(list(mid)))
-        
-        for r in incomparables:
+        refined = refiner.send(Rec(*map(np.array, rec)))
+        for r in refined:
             hpush(queue, (-volume(r), to_tuple(r)))
-
-        yield Result(mids, queue)

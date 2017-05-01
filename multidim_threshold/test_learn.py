@@ -64,11 +64,9 @@ class TestMultidimSearch(unittest.TestCase):
 
     @params(ex1d)
     def test_equiv_1d_mids(self, f, r, rec):
-        _, mid1, _ = mdt.binsearch(rec, f, eps=0.001)
-        _, mid2, _ = mdt.weightedbinsearch(rec, r, eps=0.01)
-        self.assertAlmostEqual(float(mid1), float(mid2), places=2)
-        res = mdt.gridSearch(rec.bot, rec.top, f, eps=0.01)
-        self.assertAlmostEqual(list(res.mids)[0][0], float(mid2), places=2)
+        lo1, _, hi1 = mdt.binsearch(rec, f, eps=0.001)
+        lo2, _, hi2 = mdt.weightedbinsearch(rec, r, eps=0.01)
+        self.assertAlmostEqual(float((lo1+hi1))/2, float((lo2 + hi1))/2, places=1)
 
     @params(ex1d)
     def test_polarity_invariant_1d(self, f, r, rec):
@@ -82,8 +80,3 @@ class TestMultidimSearch(unittest.TestCase):
         _, mid1, _ = mdt.weightedbinsearch(rec, r, eps=0.0001)
         _, mid2, _ = mdt.weightedbinsearch(rec, neg_r, eps=0.0001)
         self.assertAlmostEqual(float(mid1 - mid2), 0, places=3)
-
-        lo, hi = rec.bot, rec.top
-        mid1 = list(mdt.gridSearch(lo, hi, f, eps=0.01).mids)[0][0]
-        mid2 = list(mdt.gridSearch(lo, hi, neg_f, eps=0.01).mids)[0][0]
-        self.assertAlmostEqual(mid1, mid2, places=3)

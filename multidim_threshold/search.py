@@ -81,4 +81,4 @@ def gridSearch(lo, hi, oracle, eps=0.1):
         else:
             queue.extendleft(zip(children(node), repeat(node)))
 
-    return Result(vol=eps**dim * len(mids), mids=mids, unexplored=[])
+    return Result(unexplored=[])
