@@ -4,7 +4,8 @@ import unittest
 import multidim_threshold as mdt
 import numpy as np
 
-from intervaltree import IntervalTree
+from intervaltree import IntervalTree, Interval
+import networkx as nx
 from functools import partial
 
 r0 = mdt.Rec(np.array([-1]), np.array([1]))
@@ -142,3 +143,27 @@ class TestMultidimSearch(unittest.TestCase):
         can_merge, iden = mdt.utils.clusters_to_merge(t2)
         self.assertTrue(can_merge)
         self.assertEqual(iden, 1)
+
+
+    def test_merging(self):
+        g = nx.Graph()
+        g.add_edge(1, 2, interval=Interval(1, 2, {1, 2}))
+        g.add_edge(2, 3, interval=Interval(2, 6, {2, 3}))
+        g.add_edge(3, 1, interval=Interval(3, 4, {3, 1}))
+
+        t = IntervalTree()
+        t[1:2] = {1, 2}
+        t[2:6] = {2, 3}
+        t[3:4] = {3, 1}
+
+        mdt.utils.merge_clusters(1, 2, t, g)
+        self.assertEqual({(1,2), 3}, set(g.nodes()))
+        self.assertEqual(g[(1,2)][3]["interval"], Interval(3, 6, {(1,2), 3}))
+        self.assertEqual(len(g.edges()), 1)
+        self.assertEqual(len(t), 1)
+        self.assertEqual(list(t[3:6])[0], Interval(3, 6, {(1,2), 3}))
+
+        mdt.utils.merge_clusters((1,2), 3, t, g)
+        self.assertEqual({((1,2), 3)}, set(g.nodes()))
+        self.assertEqual(len(g.edges()), 0)
+        self.assertEqual(len(t), 0)

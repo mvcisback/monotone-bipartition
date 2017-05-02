@@ -4,6 +4,8 @@ from collections import namedtuple, Iterable
 import funcy as fn
 import numpy as np
 
+from intervaltree import IntervalTree, Interval
+
 Result = namedtuple("Result", "unexplored")
 Rec = namedtuple("Rec", "bot top")
 
@@ -92,8 +94,22 @@ def clusters_to_merge(tree, tol=1e-4):
     return False, (first.data, refinement_len)
 
 
-def merge_clusters(c1, c2, tree, graph):
-    pass
-    
-    
-    
+def merge_clusters(v1, v2, tree, graph):
+    graph.add_node((v1, v2))
+    tree.remove(graph[v1][v2]["interval"])
+    for v3 in (v for v in graph.neighbors(v1) if v != v2):
+        i1, i2 = graph[v1][v3]["interval"], graph[v2][v3]["interval"]
+        
+        # Remove Intervals from interval tree
+        tree.remove(i1)
+        tree.remove(i2)
+
+        # Compute merged interval and add to tree and graph
+        merged_interval = Interval(
+            max(i1.begin, i2.begin), max(i1.end, i2.end), {(v1, v2), v3})
+        tree.add(merged_interval)
+        graph.add_edge((v1,v2), v3, interval=merged_interval)
+
+    # Remove merged clusters
+    graph.remove_node(v1)
+    graph.remove_node(v2)
