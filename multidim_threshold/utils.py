@@ -1,10 +1,8 @@
 from itertools import chain, product
 from collections import namedtuple, Iterable
-from operator import itemgetter as ig
 
 import funcy as fn
 import numpy as np
-from lenses import lens
 
 Result = namedtuple("Result", "unexplored")
 Rec = namedtuple("Rec", "bot top")
@@ -78,22 +76,24 @@ def rectangleset_pH(recs1, recs2):
     return _lift_rectangle_distance(recs1, recs2, rectangle_pH)
 
 
-def min_edge(g):
-    return min(g.edges_iter(data="weight"), key=ig(2))[:2]
+def overlap_len(i1, i2):
+    return max(0, min(i1.end, i2.end) - max(i1.begin, i1.begin))
 
 
-def merge_clusters(g):
+def clusters_to_merge(tree, tol=1e-4):
     # Select which two clusters to merge
-    v1, v2, w = min_edge(g)
+    min_intervals = tree[tree.begin()]
 
-    # Add new cluster weights
-    for v3 in (v for v in g.neighbors(v1) if v != v2):
-        new_weight = max(g[v1][v3]["weight"], g[v2][v3]["weight"])
-        g.add_edge((v1,v2), v3, weight=new_weight)
+    first = min(min_intervals)
+    if len(min_intervals) == 1 or first.length() < tol:
+        return True, first.data
 
-    # Remove merged clusters
-    g.remove_node(v1)
-    g.remove_node(v2)
+    refinement_len = max(overlap_len(first, i) for i in tree[first] if i != first)
+    return False, (first.data, refinement_len)
 
-    return g, (v1, v2)
+
+def merge_clusters(c1, c2, tree, graph):
+    pass
+    
+    
     

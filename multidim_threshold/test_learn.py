@@ -4,6 +4,7 @@ import unittest
 import multidim_threshold as mdt
 import numpy as np
 
+from intervaltree import IntervalTree
 from functools import partial
 
 r0 = mdt.Rec(np.array([-1]), np.array([1]))
@@ -115,7 +116,29 @@ class TestMultidimSearch(unittest.TestCase):
         recs2 = [mdt.Rec((-2, 4), (5, 9)), mdt.Rec((2, 4), (12, 5))]
         self.assertEqual(mdt.utils.rectangleset_dH(recs1, recs2), 10)
 
+
     def test_rectangleset_pH(self):
         recs1 = [mdt.Rec((0, 3), (2, 5)), mdt.Rec((3, 1), (2, 5))]
         recs2 = [mdt.Rec((-2, 4), (5, 9)), mdt.Rec((2, 4), (12, 5))]
         self.assertEqual(mdt.utils.rectangleset_pH(recs1, recs2), 2)
+
+
+    def test_clusters_to_merge(self):
+        t1 = IntervalTree()
+        t1[1:3] = 1
+        t1[1:5] = 2
+        t1[2:7] = 3
+        t1[9:30] = 4
+        can_merge, (iden, overlap_len) = mdt.utils.clusters_to_merge(t1)
+        self.assertFalse(can_merge)
+        self.assertEqual(overlap_len, 2)
+        self.assertEqual(iden, 1)
+
+        t2 = IntervalTree()
+        t2[1:3] = 1
+        t2[4:5] = 2
+        t2[4:7] = 3
+        t2[9:30] = 4
+        can_merge, iden = mdt.utils.clusters_to_merge(t2)
+        self.assertTrue(can_merge)
+        self.assertEqual(iden, 1)
