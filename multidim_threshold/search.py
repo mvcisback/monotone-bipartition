@@ -13,8 +13,9 @@ def binsearch(r: Rec, oracle, eps=1e-3):
     Returns the lower and upper approximation on the diagonal.
     """
     lo, hi = 0, 1
-    diag = r.top - r.bot
-    f = lambda t: r.bot + t * diag
+    bot, top = map(np.array, r)
+    diag = top - bot
+    f = lambda t: bot + t * diag
     feval = lambda t: oracle(f(t))
     polarity = not feval(lo)
 
@@ -34,8 +35,9 @@ def binsearch(r: Rec, oracle, eps=1e-3):
 
 def weightedbinsearch(r: Rec, oracle, eps=0.01):
     lo, hi = 0, 1
-    diag = r.top - r.bot
-    f = lambda t: r.bot + t * diag
+    bot, top = map(np.array, r)
+    diag = top - bot
+    f = lambda t: bot + t * diag
     frobust = lambda t: oracle(f(t))
     # They are opposite signed
     frhi, frlo = frobust(hi), frobust(lo)

@@ -80,3 +80,42 @@ class TestMultidimSearch(unittest.TestCase):
         _, mid1, _ = mdt.weightedbinsearch(rec, r, eps=0.0001)
         _, mid2, _ = mdt.weightedbinsearch(rec, neg_r, eps=0.0001)
         self.assertAlmostEqual(float(mid1 - mid2), 0, places=3)
+
+
+    def test_diff_dimensions(self):
+        rec1 = mdt.Rec((0, 3), (2, 5))
+        rec2 = mdt.Rec((3, 1), (5, 5))
+        self.assertEqual(list(mdt.utils.diff_bots(rec1, rec2)), [3, 2])
+        self.assertEqual(list(mdt.utils.diff_bots(rec2, rec1)), [3, 2])
+        self.assertEqual(list(mdt.utils.diff_tops(rec2, rec1)), [3, 0])
+        self.assertEqual(list(mdt.utils.diff_tops(rec1, rec2)), [3, 0])
+
+    def test_rectangle_dH(self):
+        rec1 = mdt.Rec((0, 3), (2, 5))
+        rec2 = mdt.Rec((3, 1), (5, 5))
+
+        self.assertEqual(mdt.utils.rectangle_hausdorff(rec1, rec2), 3)
+        self.assertEqual(mdt.utils.rectangle_hausdorff(rec2, rec1), 3)
+
+        
+    def test_rectangle_pH(self):
+        rec1 = mdt.Rec((0, 3), (2, 5))
+        rec2 = mdt.Rec((3, 1), (5, 5))
+        self.assertEqual(mdt.utils.rectangle_pH(rec1, rec2), 3)
+        self.assertEqual(mdt.utils.rectangle_pH(rec2, rec1), 3)
+
+        rec1 = mdt.Rec((0, 3), (2, 5))
+        rec2 = mdt.Rec((3, 1), (2, 5))
+        self.assertEqual(mdt.utils.rectangle_pH(rec1, rec2), 0)
+        self.assertEqual(mdt.utils.rectangle_pH(rec2, rec1), 0)
+
+    
+    def test_rectangleset_dH(self):
+        recs1 = [mdt.Rec((0, 3), (2, 5)), mdt.Rec((3, 1), (2, 5))]
+        recs2 = [mdt.Rec((-2, 4), (5, 9)), mdt.Rec((2, 4), (12, 5))]
+        self.assertEqual(mdt.utils.rectangleset_dH(recs1, recs2), 10)
+
+    def test_rectangleset_pH(self):
+        recs1 = [mdt.Rec((0, 3), (2, 5)), mdt.Rec((3, 1), (2, 5))]
+        recs2 = [mdt.Rec((-2, 4), (5, 9)), mdt.Rec((2, 4), (12, 5))]
+        self.assertEqual(mdt.utils.rectangleset_pH(recs1, recs2), 2)

@@ -1,4 +1,6 @@
+from itertools import chain, product
 from collections import namedtuple, Iterable
+from operator import itemgetter as ig
 
 import funcy as fn
 import numpy as np
@@ -38,12 +40,60 @@ def bounding_rec(recs):
     return Rec(recs.min(axis=0), recs.max(axis=0))
 
 
-def naive_hausdorff(res1, res2):
-    X, Y = res1.mids, res2.mids
-    return max(_d(X, Y), _d(Y, X)) 
+def diff_dimensions(vec1, vec2):
+    return (abs(a - b) for a, b in zip(vec1, vec2))
 
-def _d(X, Y):
-    return max(d(x, Y) for x in X)
 
-def d(x, Y):
-    return min(np.linalg.norm(np.array(x) - np.array(y), np.inf) for y in Y)
+def diff_tops(r1: Rec, r2: Rec):
+    return diff_dimensions(r1.top, r2.top)
+
+
+def diff_bots(r1: Rec, r2: Rec):
+    return diff_dimensions(r1.bot, r2.bot)
+
+
+def rectangle_hausdorff(r1: Rec, r2: Rec):
+    return max(chain(diff_bots(r1, r2), diff_tops(r1, r2)))
+
+
+def rectangle_pH(r1: Rec, r2: Rec):
+    return max(map(min, zip(diff_bots(r1, r2), diff_tops(r1, r2))))
+
+
+def _lift_rectangle_distance(recs1, recs2, rect_dist):
+    """Naive implementation
+    TODO: update with smarter exploiting updates and partialorder."""
+    incident = np.zeros((len(recs1), len(recs2)))
+    for (i, x), (j, y) in product(enumerate(recs1), enumerate(recs2)):
+        incident[i, j] = rect_dist(x, y)
+
+    return max(incident.min(axis=1).max(), incident.min(axis=0).max())
+
+
+def rectangleset_dH(recs1, recs2):
+    return _lift_rectangle_distance(recs1, recs2, rectangle_hausdorff)
+
+
+def rectangleset_pH(recs1, recs2):
+    return _lift_rectangle_distance(recs1, recs2, rectangle_pH)
+
+
+def min_edge(g):
+    return min(g.edges_iter(data="weight"), key=ig(2))[:2]
+
+
+def merge_clusters(g):
+    # Select which two clusters to merge
+    v1, v2, w = min_edge(g)
+
+    # Add new cluster weights
+    for v3 in (v for v in g.neighbors(v1) if v != v2):
+        new_weight = max(g[v1][v3]["weight"], g[v2][v3]["weight"])
+        g.add_edge((v1,v2), v3, weight=new_weight)
+
+    # Remove merged clusters
+    g.remove_node(v1)
+    g.remove_node(v2)
+
+    return g, (v1, v2)
+    

@@ -12,7 +12,7 @@ from multidim_threshold.projection import find_boundaries
 
 
 def to_tuple(r: Rec):
-    return tuple(map(tuple, r))
+    return Rec(*map(tuple, r))
 
 
 def forward_cone(p: array, r: Rec) -> Rec:
@@ -69,11 +69,11 @@ def _refiner(lo, hi, oracle, diagsearch=None):
 def volume_guided_refinement(lo, hi, oracle, diagsearch=None):
     """Generator for iteratively approximating the oracle's threshold."""
     refiner = _refiner(lo, hi, oracle, diagsearch)
-    rec = next(refiner)
+    rec = next(refiner)[0]
     queue = [(-volume(rec), to_tuple(rec))]
 
     while queue:
-        yield Result(queue)
+        yield Result(list(fn.pluck(1, queue)))
         _, rec = hpop(queue)
         refined = refiner.send(Rec(*map(np.array, rec)))
         for r in refined:
