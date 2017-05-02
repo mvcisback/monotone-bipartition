@@ -78,6 +78,7 @@ def rectangleset_pH(recs1, recs2):
     return _lift_rectangle_distance(recs1, recs2, rectangle_pH)
 
 
+
 def overlap_len(i1, i2):
     return max(0, min(i1.end, i2.end) - max(i1.begin, i1.begin))
 
@@ -95,7 +96,8 @@ def clusters_to_merge(tree, tol=1e-4):
 
 
 def merge_clusters(v1, v2, tree, graph):
-    graph.add_node((v1, v2))
+    v12 = frozenset([v1, v2])
+    graph.add_node(v12)
     tree.remove(graph[v1][v2]["interval"])
     for v3 in (v for v in graph.neighbors(v1) if v != v2):
         i1, i2 = graph[v1][v3]["interval"], graph[v2][v3]["interval"]
@@ -106,9 +108,9 @@ def merge_clusters(v1, v2, tree, graph):
 
         # Compute merged interval and add to tree and graph
         merged_interval = Interval(
-            max(i1.begin, i2.begin), max(i1.end, i2.end), {(v1, v2), v3})
+            max(i1.begin, i2.begin), max(i1.end, i2.end), {v12, v3})
         tree.add(merged_interval)
-        graph.add_edge((v1,v2), v3, interval=merged_interval)
+        graph.add_edge(v12, v3, interval=merged_interval)
 
     # Remove merged clusters
     graph.remove_node(v1)

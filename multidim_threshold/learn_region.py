@@ -5,7 +5,10 @@ from heapq import heappush as hpush, heappop as hpop
 import numpy as np
 from numpy import array
 import funcy as fn
+import networkx as nx
+from intervaltree import IntervalTree, Interval
 
+import multidim_threshold as mdt
 from multidim_threshold.utils import Result, Rec, to_rec, volume, basis_vecs
 from multidim_threshold.search import binsearch, weightedbinsearch
 from multidim_threshold.projection import find_boundaries
@@ -78,3 +81,44 @@ def volume_guided_refinement(lo, hi, oracle, diagsearch=None):
         refined = refiner.send(Rec(*map(np.array, rec)))
         for r in refined:
             hpush(queue, (-volume(r), to_tuple(r)))
+
+
+def hausdorff_guided_clustering(los, his, oracles, diagsearches, tol=1e-3):
+    # Initial set of edges
+    edges = set(map(frozenset, combinations(nodes, 2)))
+
+    # Co-routines for refining rectangles
+    refiners = [_refiner(*args) for args in zip(los, his, oracles, diagsearches)]
+
+    # First approximations
+    rec_sets = [next(refiner) for refiner in refiners]
+
+    # Map from rectangles to which edges is watching the rectangle
+    watching = {(rec_sets[0], i): edges  for i, rec_set in enumerate(rec_sets)}
+
+    g = nx.Graph()
+
+    # Create Adacjency Graph
+    for edge in edges:
+        i, j = edge
+        recs_i, recs_j = recs_sets[i], recs_sets[j]
+        pH = mdt.rectangleset_pH(recs_i, recs_j)
+        dH = mdt.rectangleset_dH(recs_i, recs_j)
+        g.add_edge(i, j, interval=Interval(ph, dH, edge))
+
+    # Create Interval Tree
+    t = IntervalTree(fn.pluck(2, g.edges_iter(data="interval")))
+    # Until Tree is created keep refining
+    while len(g) != 1:
+        yield g, t
+        can_merge, result = mdt.clusters_to_merge(t)
+        if can_merge:
+            i, j = result
+            mdt.merge_clusters(v1=i, v2=j, tree=t, graph=g)
+        else:
+            (i, j), eps = result
+            l = l2 = float('inf') # TODO: set to current length of smallest interval
+            
+            while l - l2 < max(eps, tol):
+                # TODO: lookup which rectangles are causing the hausdorff distance!
+                "refine relevant rectangle set based on rectangle causing hasudorff"

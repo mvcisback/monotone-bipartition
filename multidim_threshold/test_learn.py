@@ -157,13 +157,16 @@ class TestMultidimSearch(unittest.TestCase):
         t[3:4] = {3, 1}
 
         mdt.utils.merge_clusters(1, 2, t, g)
-        self.assertEqual({(1,2), 3}, set(g.nodes()))
-        self.assertEqual(g[(1,2)][3]["interval"], Interval(3, 6, {(1,2), 3}))
+        v12 = frozenset([1,2])
+        self.assertEqual({v12, 3}, set(g.nodes()))
+        self.assertEqual(g[v12][3]["interval"], Interval(3, 6, {v12, 3}))
         self.assertEqual(len(g.edges()), 1)
         self.assertEqual(len(t), 1)
-        self.assertEqual(list(t[3:6])[0], Interval(3, 6, {(1,2), 3}))
+        self.assertEqual(list(t[3:6])[0], Interval(3, 6, {v12, 3}))
 
-        mdt.utils.merge_clusters((1,2), 3, t, g)
-        self.assertEqual({((1,2), 3)}, set(g.nodes()))
+        v123 = frozenset([v12, 3])
+        mdt.utils.merge_clusters(v12, 3, t, g)
+        self.assertEqual(len(g), 1)
+        self.assertEqual(v123, g.nodes()[0])
         self.assertEqual(len(g.edges()), 0)
         self.assertEqual(len(t), 0)
