@@ -60,6 +60,15 @@ def rectangle_pH(r1: Rec, r2: Rec):
     return max(map(min, zip(diff_bots(r1, r2), diff_tops(r1, r2))))
 
 
+def _argminmax(A, axis):
+    idxs = A.argmin(axis=axis)
+    idx2 = np.choose(idxs, A.T).argmax()
+    idx1 = idxs[idx2]
+    if axis == 1:
+        idx1, idx2 = idx2, idx1
+    return A[idx1, idx2], (idxs[idx2], idx2)
+
+
 def _lift_rectangle_distance(recs1, recs2, rect_dist):
     """Naive implementation
     TODO: update with smarter exploiting updates and partialorder."""
@@ -67,7 +76,7 @@ def _lift_rectangle_distance(recs1, recs2, rect_dist):
     for (i, x), (j, y) in product(enumerate(recs1), enumerate(recs2)):
         incident[i, j] = rect_dist(x, y)
 
-    return max(incident.min(axis=1).max(), incident.min(axis=0).max())
+    return max(_argminmax(incident, 0), _argminmax(incident, 1))
 
 
 def rectangleset_dH(recs1, recs2):

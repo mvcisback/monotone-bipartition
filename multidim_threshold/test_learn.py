@@ -3,6 +3,7 @@ import unittest
 
 import multidim_threshold as mdt
 import numpy as np
+import funcy as fn
 
 from intervaltree import IntervalTree, Interval
 import networkx as nx
@@ -115,13 +116,15 @@ class TestMultidimSearch(unittest.TestCase):
     def test_rectangleset_dH(self):
         recs1 = [mdt.Rec((0, 3), (2, 5)), mdt.Rec((3, 1), (2, 5))]
         recs2 = [mdt.Rec((-2, 4), (5, 9)), mdt.Rec((2, 4), (12, 5))]
-        self.assertEqual(mdt.utils.rectangleset_dH(recs1, recs2), 10)
+        self.assertEqual(mdt.utils.rectangleset_dH(recs1, recs2), 
+                         (10, (0, 1)))
 
 
     def test_rectangleset_pH(self):
         recs1 = [mdt.Rec((0, 3), (2, 5)), mdt.Rec((3, 1), (2, 5))]
         recs2 = [mdt.Rec((-2, 4), (5, 9)), mdt.Rec((2, 4), (12, 5))]
-        self.assertEqual(mdt.utils.rectangleset_pH(recs1, recs2), 2)
+        self.assertEqual(mdt.utils.rectangleset_pH(recs1, recs2), 
+                         (2, (0, 0)))
 
 
     def test_clusters_to_merge(self):
@@ -170,3 +173,17 @@ class TestMultidimSearch(unittest.TestCase):
         self.assertEqual(v123, g.nodes()[0])
         self.assertEqual(len(g.edges()), 0)
         self.assertEqual(len(t), 0)
+
+    
+    def test_hausdorff_guided_clustering(self):
+        oracle1 = lambda x: bool(x[0] >= 0.5 and x[1] >= 0.5)
+        oracle2 = lambda x: bool(x[0] >= 10 and x[1] >= 10)
+        oracles = [oracle1, oracle1, oracle2, oracle2]
+        hgc = mdt.hausdorff_guided_clustering((0, 0), (1,1), oracles)
+        g, t = next(hgc)
+        self.assertEqual(len(g), 4)
+        self.assertEqual(len(g.edges()), 6)
+        self.assertEqual(
+            set(fn.pluck(2, g.edges(data="interval"))),
+            {Interval(0, (1e-6)/3, frozenset([0, 1]))},
+        )

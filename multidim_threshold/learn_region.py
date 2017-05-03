@@ -10,8 +10,7 @@ from intervaltree import IntervalTree, Interval
 
 import multidim_threshold as mdt
 from multidim_threshold.utils import Result, Rec, to_rec, volume, basis_vecs
-from multidim_threshold.search import binsearch, weightedbinsearch
-from multidim_threshold.projection import find_boundaries
+from multidim_threshold.search import binsearch
 
 
 def to_tuple(r: Rec):
@@ -55,16 +54,20 @@ def refine(rec: Rec, diagsearch):
     return incomparables
     
 
+def bounding_box(r: Rec, oracle):
+    diag = np.array(r.top) - np.array(r.bot)
+    basis = basis_vecs(len(r.bot))
+    recs = [Rec(r.bot, r.bot + diag*v) for v in basis]
+    top = np.array([binsearch(r2, oracle)[2]@v for v, r2 in zip(basis, recs)])
+    return Rec(bot=r.bot, top=top)
+
+
 def _refiner(lo, hi, oracle, diagsearch=None):
     """Generator for iteratively approximating the oracle's threshold."""
     rec = to_rec(lo, hi)
+    diagsearch = fn.partial(binsearch, oracle=oracle)
 
-    if diagsearch is None:
-        bool_oracle = isinstance(oracle(rec.bot), bool)
-        diagsearch = binsearch if bool_oracle else weightedbinsearch
-        diagsearch = fn.partial(diagsearch, oracle=oracle)
-
-    rec = yield [find_boundaries(rec, diagsearch)]
+    rec = yield [bounding_box(rec, oracle)]
     while True:
         rec = yield refine(rec, diagsearch)
 
@@ -83,42 +86,41 @@ def volume_guided_refinement(lo, hi, oracle, diagsearch=None):
             hpush(queue, (-volume(r), to_tuple(r)))
 
 
-def hausdorff_guided_clustering(los, his, oracles, diagsearches, tol=1e-3):
-    # Initial set of edges
-    edges = set(map(frozenset, combinations(nodes, 2)))
-
+def hausdorff_guided_clustering(lo, hi, oracles, tol=1e-6):
     # Co-routines for refining rectangles
-    refiners = [_refiner(*args) for args in zip(los, his, oracles, diagsearches)]
+    refiners = [_refiner(lo, hi, oracle) for oracle in oracles]
 
     # First approximations
     rec_sets = [next(refiner) for refiner in refiners]
 
-    # Map from rectangles to which edges is watching the rectangle
-    watching = {(rec_sets[0], i): edges  for i, rec_set in enumerate(rec_sets)}
+    # Initial set of edges
+    edges = set(map(frozenset, combinations(range(len(oracles)), 2)))
 
     g = nx.Graph()
-
     # Create Adacjency Graph
     for edge in edges:
         i, j = edge
-        recs_i, recs_j = recs_sets[i], recs_sets[j]
-        pH = mdt.rectangleset_pH(recs_i, recs_j)
-        dH = mdt.rectangleset_dH(recs_i, recs_j)
-        g.add_edge(i, j, interval=Interval(ph, dH, edge))
+        recs_i, recs_j = rec_sets[i], rec_sets[j]
+        # TODO: implement more sophisticated blame tracking
+        pH, _ = mdt.rectangleset_pH(recs_i, recs_j)
+        dH, _ = mdt.rectangleset_dH(recs_i, recs_j)
+        if pH == dH:
+            # TODO: hack. IntervalTree doesn't support 0 points
+            # So we add an interval with smaller than tolerance
+            # length
+            dH += tol/3
+        g.add_edge(i, j, interval=Interval(pH, dH, edge))
 
     # Create Interval Tree
     t = IntervalTree(fn.pluck(2, g.edges_iter(data="interval")))
-    # Until Tree is created keep refining
+
     while len(g) != 1:
         yield g, t
-        can_merge, result = mdt.clusters_to_merge(t)
+        can_merge, result = mdt.clusters_to_merge(t, tol)
         if can_merge:
             i, j = result
             mdt.merge_clusters(v1=i, v2=j, tree=t, graph=g)
         else:
-            (i, j), eps = result
-            l = l2 = float('inf') # TODO: set to current length of smallest interval
-            
-            while l - l2 < max(eps, tol):
-                # TODO: lookup which rectangles are causing the hausdorff distance!
-                "refine relevant rectangle set based on rectangle causing hasudorff"
+            if isinstance(i, frozenset):
+                import ipdb; ipdb.set_trace()
+
