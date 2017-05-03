@@ -121,6 +121,6 @@ def hausdorff_guided_clustering(lo, hi, oracles, tol=1e-6):
             i, j = result
             mdt.merge_clusters(v1=i, v2=j, tree=t, graph=g)
         else:
-            if isinstance(i, frozenset):
-                import ipdb; ipdb.set_trace()
+            raise NotImplementedError
+    yield g, t
 

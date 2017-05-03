@@ -175,9 +175,9 @@ class TestMultidimSearch(unittest.TestCase):
         self.assertEqual(len(t), 0)
 
     
-    def test_hausdorff_guided_clustering(self):
-        oracle1 = lambda x: bool(x[0] >= 0.5 and x[1] >= 0.5)
-        oracle2 = lambda x: bool(x[0] >= 10 and x[1] >= 10)
+    def test_hausdorff_guided_clustering_no_refinement(self):
+        oracle1 = lambda x: bool(x[0] >= 0.5 or x[1] >= 0.5)
+        oracle2 = lambda x: bool(x[0] >= 10 or x[1] >= 10)
         oracles = [oracle1, oracle1, oracle2, oracle2]
         hgc = mdt.hausdorff_guided_clustering((0, 0), (1,1), oracles)
         g, t = next(hgc)
@@ -185,5 +185,35 @@ class TestMultidimSearch(unittest.TestCase):
         self.assertEqual(len(g.edges()), 6)
         self.assertEqual(
             set(fn.pluck(2, g.edges(data="interval"))),
-            {Interval(0, (1e-6)/3, frozenset([0, 1]))},
+            {
+                Interval(0, (1e-6)/3, frozenset([0, 1])),
+                Interval(0, (1e-6)/3, frozenset([2, 3])),
+
+                Interval(0, 0.5, frozenset([0, 2])),
+                Interval(0, 0.5, frozenset([0, 3])),
+
+                Interval(0, 0.5, frozenset([1, 2])),
+                Interval(0, 0.5, frozenset([1, 3])),
+            }
         )
+        self.assertEqual(len(t), 6)
+
+        g,t = next(hgc)
+        self.assertEqual(len(g), 3)
+        self.assertEqual(len(g.edges()), 3)
+        
+        g,t = next(hgc)
+        self.assertEqual(len(g), 2)
+        self.assertEqual(len(g.edges()), 1)
+
+        g,t = next(hgc)
+        self.assertEqual(len(g), 1)
+        self.assertEqual(len(t), 0)
+        self.assertEqual(
+            g.nodes()[0],
+            frozenset(
+                [frozenset([0, 1]), 
+                frozenset([2, 3])]
+            )
+        )
+
