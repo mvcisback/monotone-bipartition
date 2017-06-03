@@ -16,7 +16,20 @@ def to_rec(lo, hi):
 
 
 def volume(rec: Rec):
-    return np.prod(np.abs(rec.bot - rec.top))
+    return np.prod(np.abs(np.array(rec.bot) - np.array(rec.top)))
+
+
+def basis_vec(i, dim):
+    """Basis vector i"""
+    a = np.zeros(dim)
+    a[i] = 1.0
+    return a
+
+
+@fn.memoize
+def basis_vecs(dim):
+    """Standard orthonormal basis."""
+    return [basis_vec(i, dim) for i in range(dim)]
 
 
 def bounding_rec(recs):

@@ -10,6 +10,7 @@ setup(name='multidim-threshold',
       install_requires=[
           'numpy',
           'funcy',
+          'pycapnp',
       ],
       packages=find_packages(),
       )

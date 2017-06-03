@@ -1,13 +1,15 @@
 """Implements muli-dimensional threshold discovery via binary search."""
-from itertools import product
+from itertools import combinations
 from heapq import heappush as hpush, heappop as hpop
 
 import numpy as np
 from numpy import array
 import funcy as fn
+import networkx as nx
+from intervaltree import IntervalTree, Interval
 
 import multidim_threshold as mdt
-from multidim_threshold.utils import Result, Rec, to_rec, volume
+from multidim_threshold.utils import Result, Rec, to_rec, volume, basis_vecs
 from multidim_threshold.search import binsearch
 
 
@@ -15,26 +17,32 @@ def to_tuple(r: Rec):
     return Rec(*map(tuple, r))
 
 
-def intvls_to_rec(intvls):
-    return Rec(*zip(*intvls))
+def forward_cone(p: array, r: Rec) -> Rec:
+    """Computes the forward cone from point p."""
+    return Rec(p, r.top)
 
 
-@fn.autocurry
-def not_comparable(lo, hi, r):
-    """Returns True iff is not comparable (product ordering) to lo or hi."""
-    return (r.bot > hi).any() or (r.bot < lo).any()
+def backward_cone(p: array, r: Rec) -> Rec:
+    """Computes the backward cone from point p."""
+    return Rec(r.bot, p)
 
 
-def subdivide(lo, hi, r: Rec) -> [Rec]:
-    """Subdivides r at (lo, hi) and returns the set of incomparable cones."""
-    subdivide1d = [[(b, h), (l, t)] for b, l, h, t in zip(r.bot, lo, hi, r.top)]
-    all_recs = map(intvls_to_rec, product(*subdivide1d))
-    return list(filter(not_comparable(lo, hi), all_recs))
+def generate_incomparables(lo, hi, r):
+    """Generate all incomparable hyper-boxes."""
+    forward, backward = forward_cone(lo, r), backward_cone(hi, r)
+    bases = (backward.bot, forward.bot)
+    diags = (backward.top - backward.bot, forward.top - forward.bot)
+    dim = len(bases[0])
+    basis = basis_vecs(dim)
+    for i in range(1, dim):
+        for es in combinations(basis, i):
+            vs = tuple(sum((diag @e) * e for e in es) for diag in diags)
+            yield Rec(*[base + v for base, v in zip(bases, vs)])
 
 
 def refine(rec: Rec, diagsearch):
     low, _, high = diagsearch(rec)
-    return subdivide(low, high, rec)
+    return list(generate_incomparables(low, high, rec))
     
 
 def bounding_box(r: Rec, oracle):
@@ -70,6 +78,39 @@ def volume_guided_refinement(lo, hi, oracle, diagsearch=None):
 
 
 def hausdorff_guided_clustering(lo, hi, oracles, tol=1e-6):
-    # Waiting on new agglomerative clustering code
-    raise NotImplementedError
+    # Co-routines for refining rectangles
+    refiners = [_refiner(lo, hi, oracle) for oracle in oracles]
 
+    # First approximations
+    rec_sets = [next(refiner) for refiner in refiners]
+
+    # Initial set of edges
+    edges = set(map(frozenset, combinations(range(len(oracles)), 2)))
+
+    g = nx.Graph()
+    # Create Adacjency Graph
+    for edge in edges:
+        i, j = edge
+        recs_i, recs_j = rec_sets[i], rec_sets[j]
+        # TODO: implement more sophisticated blame tracking
+        pH, _ = mdt.rectangleset_pH(recs_i, recs_j)
+        dH, _ = mdt.rectangleset_dH(recs_i, recs_j)
+        if pH == dH:
+            # TODO: hack. IntervalTree doesn't support 0 points
+            # So we add an interval with smaller than tolerance
+            # length
+            dH += tol/3
+        g.add_edge(i, j, interval=Interval(pH, dH, edge))
+
+    # Create Interval Tree
+    t = IntervalTree(fn.pluck(2, g.edges_iter(data="interval")))
+
+    while len(g) != 1:
+        yield g, t
+        can_merge, result = mdt.clusters_to_merge(t, tol)
+        if can_merge:
+            i, j = result
+            mdt.merge_clusters(v1=i, v2=j, tree=t, graph=g)
+        else:
+            raise NotImplementedError
+    yield g, t

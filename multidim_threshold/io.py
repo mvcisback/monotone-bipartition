@@ -28,7 +28,7 @@ def load(fp):
 ########## Write ###############
 
 def to_capnp_rec(rec):
-    return Rec.new_message(bot=rec.bot, top=rec.top)
+    return Rec.new_message(bot=lmap(float, rec.bot), top=lmap(float, rec.top))
 
 
 def to_capnp_rec_set(res):

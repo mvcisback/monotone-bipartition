@@ -1,8 +1,8 @@
 @0xc7b252b79e0e6255;
 
 struct Rec @0xc561637204d4a6a9 {
-     bot @0 :List(UInt32);
-     top @1 :List(UInt32);
+     bot @0 :List(Float64);
+     top @1 :List(Float64);
 }
 
 
