@@ -9,7 +9,6 @@ setup(name='multidim-threshold',
       license='MIT',
       install_requires=[
           'numpy',
-          'svgwrite',
           'funcy',
       ],
       packages=find_packages(),

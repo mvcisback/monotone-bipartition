@@ -3,8 +3,9 @@ from collections import deque
 from math import isclose
 
 import numpy as np
+import funcy as fn
 
-from multidim_threshold.utils import Result, Rec, to_rec, basis_vecs, map_tuple
+from multidim_threshold.utils import Result, Rec, to_rec
 
 
 def binsearch(r: Rec, oracle, eps=1e-3):
@@ -66,6 +67,20 @@ def weightedbinsearch(r: Rec, oracle, eps=0.01):
         frlo, frhi = frobust(lo), frobust(hi)
 
     return f(lo), f(mid), f(hi)
+
+
+def basis_vec(i, dim):
+    """Basis vector i"""
+    a = np.zeros(dim)
+    a[i] = 1.0
+    return a
+
+
+@fn.memoize
+def basis_vecs(dim):
+    """Standard orthonormal basis."""
+    return [basis_vec(i, dim) for i in range(dim)]
+
 
 
 def gridSearch(lo, hi, oracle, eps=0.1):
