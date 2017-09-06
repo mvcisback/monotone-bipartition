@@ -5,8 +5,6 @@ from heapq import heappush as hpush, heappop as hpop
 import numpy as np
 from numpy import array
 import funcy as fn
-import networkx as nx
-from intervaltree import IntervalTree, Interval
 
 import multidim_threshold as mdt
 from multidim_threshold.utils import Result, Rec, to_rec, volume, basis_vecs
@@ -63,7 +61,7 @@ def _refiner(lo, hi, oracle, diagsearch=None):
         rec = yield refine(rec, diagsearch)
 
 
-def volume_guided_refinement(lo, hi, oracle, diagsearch=None):
+def cost_guided_refinement(lo, hi, oracle, cost, diagsearch=None):
     """Generator for iteratively approximating the oracle's threshold."""
     refiner = _refiner(lo, hi, oracle, diagsearch)
     rec = next(refiner)[0]
@@ -77,40 +75,5 @@ def volume_guided_refinement(lo, hi, oracle, diagsearch=None):
             hpush(queue, (-volume(r), to_tuple(r)))
 
 
-def hausdorff_guided_clustering(lo, hi, oracles, tol=1e-6):
-    # Co-routines for refining rectangles
-    refiners = [_refiner(lo, hi, oracle) for oracle in oracles]
-
-    # First approximations
-    rec_sets = [next(refiner) for refiner in refiners]
-
-    # Initial set of edges
-    edges = set(map(frozenset, combinations(range(len(oracles)), 2)))
-
-    g = nx.Graph()
-    # Create Adacjency Graph
-    for edge in edges:
-        i, j = edge
-        recs_i, recs_j = rec_sets[i], rec_sets[j]
-        # TODO: implement more sophisticated blame tracking
-        pH, _ = mdt.rectangleset_pH(recs_i, recs_j)
-        dH, _ = mdt.rectangleset_dH(recs_i, recs_j)
-        if pH == dH:
-            # TODO: hack. IntervalTree doesn't support 0 points
-            # So we add an interval with smaller than tolerance
-            # length
-            dH += tol/3
-        g.add_edge(i, j, interval=Interval(pH, dH, edge))
-
-    # Create Interval Tree
-    t = IntervalTree(fn.pluck(2, g.edges_iter(data="interval")))
-
-    while len(g) != 1:
-        yield g, t
-        can_merge, result = mdt.clusters_to_merge(t, tol)
-        if can_merge:
-            i, j = result
-            mdt.merge_clusters(v1=i, v2=j, tree=t, graph=g)
-        else:
-            raise NotImplementedError
-    yield g, t
+def volume_guided_refinement(lo, hi, oracle, diagsearch=None):
+    yield from cost_guided_refinement(lo, hi, oracle, volume, diagsearch)
