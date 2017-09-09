@@ -18,18 +18,18 @@ def binsearch(r: Rec, oracle, eps=1e-3):
     diag = top - bot
     f = lambda t: bot + t * diag
     feval = lambda t: oracle(f(t))
-    polarity = not feval(lo)
 
     # Early termination via bounds checks
-    if polarity and feval(lo):
+    if feval(lo):
         return f(lo), None, f(lo)
-    elif not polarity and feval(hi):
+    elif not feval(hi):
         return f(hi), None, f(hi)
 
     mid = lo
     while (f(hi) - f(lo) > eps).any():
         mid = lo + (hi - lo) / 2
-        lo, hi = (mid, hi) if feval(mid) ^ polarity else (lo, mid)
+        lo, hi = (lo, mid) if feval(mid) else (mid, hi)
+
 
     return f(lo), f(mid), f(hi)
 

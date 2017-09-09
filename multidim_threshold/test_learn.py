@@ -5,8 +5,6 @@ import multidim_threshold as mdt
 import numpy as np
 import funcy as fn
 
-from intervaltree import IntervalTree, Interval
-import networkx as nx
 from functools import partial
 
 r0 = mdt.Rec(np.array([-1]), np.array([1]))
@@ -57,7 +55,7 @@ class TestMultidimSearch(unittest.TestCase):
     @params((r0, p0, i0), (r1, p1, i1))
     def test_incomparables(self, r, mid, i):
         self.assertEqual(set(map(mdt.to_tuple,
-                                 mdt.generate_incomparables(mid, r))), i)
+                                 mdt.generate_incomparables(mid, mid, r))), i)
 
     @params((r0, F0), (r1, F1))
     def test_binsearch(self, r, f):
@@ -83,137 +81,3 @@ class TestMultidimSearch(unittest.TestCase):
         _, mid1, _ = mdt.weightedbinsearch(rec, r, eps=0.0001)
         _, mid2, _ = mdt.weightedbinsearch(rec, neg_r, eps=0.0001)
         self.assertAlmostEqual(float(mid1 - mid2), 0, places=3)
-
-
-    def test_diff_dimensions(self):
-        rec1 = mdt.Rec((0, 3), (2, 5))
-        rec2 = mdt.Rec((3, 1), (5, 5))
-        self.assertEqual(list(mdt.utils.diff_bots(rec1, rec2)), [3, 2])
-        self.assertEqual(list(mdt.utils.diff_bots(rec2, rec1)), [3, 2])
-        self.assertEqual(list(mdt.utils.diff_tops(rec2, rec1)), [3, 0])
-        self.assertEqual(list(mdt.utils.diff_tops(rec1, rec2)), [3, 0])
-
-    def test_rectangle_dH(self):
-        rec1 = mdt.Rec((0, 3), (2, 5))
-        rec2 = mdt.Rec((3, 1), (5, 5))
-
-        self.assertEqual(mdt.utils.rectangle_hausdorff(rec1, rec2), 3)
-        self.assertEqual(mdt.utils.rectangle_hausdorff(rec2, rec1), 3)
-
-        
-    def test_rectangle_pH(self):
-        rec1 = mdt.Rec((0, 3), (2, 5))
-        rec2 = mdt.Rec((3, 1), (5, 5))
-        self.assertEqual(mdt.utils.rectangle_pH(rec1, rec2), 3)
-        self.assertEqual(mdt.utils.rectangle_pH(rec2, rec1), 3)
-
-        rec1 = mdt.Rec((0, 3), (2, 5))
-        rec2 = mdt.Rec((3, 1), (2, 5))
-        self.assertEqual(mdt.utils.rectangle_pH(rec1, rec2), 0)
-        self.assertEqual(mdt.utils.rectangle_pH(rec2, rec1), 0)
-
-    
-    def test_rectangleset_dH(self):
-        recs1 = [mdt.Rec((0, 3), (2, 5)), mdt.Rec((3, 1), (2, 5))]
-        recs2 = [mdt.Rec((-2, 4), (5, 9)), mdt.Rec((2, 4), (12, 5))]
-        self.assertEqual(mdt.utils.rectangleset_dH(recs1, recs2), 
-                         (10, (0, 1)))
-
-
-    def test_rectangleset_pH(self):
-        recs1 = [mdt.Rec((0, 3), (2, 5)), mdt.Rec((3, 1), (2, 5))]
-        recs2 = [mdt.Rec((-2, 4), (5, 9)), mdt.Rec((2, 4), (12, 5))]
-        self.assertEqual(mdt.utils.rectangleset_pH(recs1, recs2), 
-                         (2, (0, 0)))
-
-
-    def test_clusters_to_merge(self):
-        t1 = IntervalTree()
-        t1[1:3] = 1
-        t1[1:5] = 2
-        t1[2:7] = 3
-        t1[9:30] = 4
-        can_merge, (iden, overlap_len) = mdt.utils.clusters_to_merge(t1)
-        self.assertFalse(can_merge)
-        self.assertEqual(overlap_len, 2)
-        self.assertEqual(iden, 1)
-
-        t2 = IntervalTree()
-        t2[1:3] = 1
-        t2[4:5] = 2
-        t2[4:7] = 3
-        t2[9:30] = 4
-        can_merge, iden = mdt.utils.clusters_to_merge(t2)
-        self.assertTrue(can_merge)
-        self.assertEqual(iden, 1)
-
-
-    def test_merging(self):
-        g = nx.Graph()
-        g.add_edge(1, 2, interval=Interval(1, 2, {1, 2}))
-        g.add_edge(2, 3, interval=Interval(2, 6, {2, 3}))
-        g.add_edge(3, 1, interval=Interval(3, 4, {3, 1}))
-
-        t = IntervalTree()
-        t[1:2] = {1, 2}
-        t[2:6] = {2, 3}
-        t[3:4] = {3, 1}
-
-        mdt.utils.merge_clusters(1, 2, t, g)
-        v12 = frozenset([1,2])
-        self.assertEqual({v12, 3}, set(g.nodes()))
-        self.assertEqual(g[v12][3]["interval"], Interval(3, 6, {v12, 3}))
-        self.assertEqual(len(g.edges()), 1)
-        self.assertEqual(len(t), 1)
-        self.assertEqual(list(t[3:6])[0], Interval(3, 6, {v12, 3}))
-
-        v123 = frozenset([v12, 3])
-        mdt.utils.merge_clusters(v12, 3, t, g)
-        self.assertEqual(len(g), 1)
-        self.assertEqual(v123, g.nodes()[0])
-        self.assertEqual(len(g.edges()), 0)
-        self.assertEqual(len(t), 0)
-
-    
-    def test_hausdorff_guided_clustering_no_refinement(self):
-        oracle1 = lambda x: bool(x[0] >= 0.5 or x[1] >= 0.5)
-        oracle2 = lambda x: bool(x[0] >= 10 or x[1] >= 10)
-        oracles = [oracle1, oracle1, oracle2, oracle2]
-        hgc = mdt.hausdorff_guided_clustering((0, 0), (1,1), oracles)
-        g, t = next(hgc)
-        self.assertEqual(len(g), 4)
-        self.assertEqual(len(g.edges()), 6)
-        self.assertEqual(
-            set(fn.pluck(2, g.edges(data="interval"))),
-            {
-                Interval(0, (1e-6)/3, frozenset([0, 1])),
-                Interval(0, (1e-6)/3, frozenset([2, 3])),
-
-                Interval(0, 0.5, frozenset([0, 2])),
-                Interval(0, 0.5, frozenset([0, 3])),
-
-                Interval(0, 0.5, frozenset([1, 2])),
-                Interval(0, 0.5, frozenset([1, 3])),
-            }
-        )
-        self.assertEqual(len(t), 6)
-
-        g,t = next(hgc)
-        self.assertEqual(len(g), 3)
-        self.assertEqual(len(g.edges()), 3)
-        
-        g,t = next(hgc)
-        self.assertEqual(len(g), 2)
-        self.assertEqual(len(g.edges()), 1)
-
-        g,t = next(hgc)
-        self.assertEqual(len(g), 1)
-        self.assertEqual(len(t), 0)
-        self.assertEqual(
-            g.nodes()[0],
-            frozenset(
-                [frozenset([0, 1]), 
-                frozenset([2, 3])]
-            )
-        )
-

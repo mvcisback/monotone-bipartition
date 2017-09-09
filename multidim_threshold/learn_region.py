@@ -1,6 +1,6 @@
 """Implements muli-dimensional threshold discovery via binary search."""
 from itertools import combinations
-from heapq import heappush as hpush, heappop as hpop
+from heapq import heappush as hpush, heappop as hpop, heapify
 
 import numpy as np
 from numpy import array
@@ -40,6 +40,8 @@ def generate_incomparables(lo, hi, r):
 
 def refine(rec: Rec, diagsearch):
     low, _, high = diagsearch(rec)
+    if (low == high).all():
+        return [Rec(low, low)]
     return list(generate_incomparables(low, high, rec))
     
 
@@ -51,29 +53,28 @@ def bounding_box(r: Rec, oracle):
     return Rec(bot=r.bot, top=top)
 
 
-def _refiner(lo, hi, oracle, diagsearch=None):
+def _refiner(oracle, diagsearch=None):
     """Generator for iteratively approximating the oracle's threshold."""
-    rec = to_rec(lo, hi)
-    diagsearch = fn.partial(binsearch, oracle=oracle)
-
-    rec = yield [bounding_box(rec, oracle)]
+    diagsearch = fn.partial(binsearch, oracle=oracle)    
+    rec = yield
     while True:
         rec = yield refine(rec, diagsearch)
 
 
-def cost_guided_refinement(lo, hi, oracle, cost, diagsearch=None):
+def guided_refinement(rec_set, oracles, cost, diagsearch=None):
     """Generator for iteratively approximating the oracle's threshold."""
-    refiner = _refiner(lo, hi, oracle, diagsearch)
-    rec = next(refiner)[0]
-    queue = [(-volume(rec), to_tuple(rec))]
+    refiners = {k: _refiner(o) for k, o in oracles.items()}
+    queue = [(cost(rec, tag), (tag, to_tuple(rec))) for tag, rec in rec_set]
+    heapify(queue)
+    for refiner in refiners.values():
+        next(refiner)
 
     while queue:
-        yield Result(list(fn.pluck(1, queue)))
-        _, rec = hpop(queue)
-        refined = refiner.send(Rec(*map(np.array, rec)))
-        for r in refined:
-            hpush(queue, (-volume(r), to_tuple(r)))
+        yield queue
+        _, (tag, rec) = hpop(queue)
+        for r in refiners[tag].send(Rec(*map(np.array, rec))):
+            hpush(queue, (cost(r, tag), (tag, to_tuple(r))))
 
 
-def volume_guided_refinement(lo, hi, oracle, diagsearch=None):
-    yield from cost_guided_refinement(lo, hi, oracle, volume, diagsearch)
+def volume_guided_refinement(rec_set, oracles, diagsearch=None):
+    return guided_refinement(rec_set, oracles, lambda r, _: volume(r), diagsearch)
