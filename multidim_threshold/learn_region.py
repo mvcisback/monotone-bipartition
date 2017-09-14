@@ -61,10 +61,12 @@ def _refiner(oracle, diagsearch=None):
         rec = yield refine(rec, diagsearch)
 
 
-def guided_refinement(rec_set, oracles, cost, diagsearch=None):
+def guided_refinement(rec_set, oracles, cost, prune=lambda *_: False, 
+                      diagsearch=None):
     """Generator for iteratively approximating the oracle's threshold."""
     refiners = {k: _refiner(o) for k, o in oracles.items()}
-    queue = [(cost(rec, tag), (tag, to_tuple(rec))) for tag, rec in rec_set]
+    queue = [(cost(rec, tag), (tag, to_tuple(rec))) for tag, rec in rec_set 
+             if not prune(rec, tag)]
     heapify(queue)
     for refiner in refiners.values():
         next(refiner)
@@ -73,8 +75,10 @@ def guided_refinement(rec_set, oracles, cost, diagsearch=None):
         yield queue
         _, (tag, rec) = hpop(queue)
         for r in refiners[tag].send(Rec(*map(np.array, rec))):
+            if prune(r, tag):
+                continue
             hpush(queue, (cost(r, tag), (tag, to_tuple(r))))
 
 
 def volume_guided_refinement(rec_set, oracles, diagsearch=None):
-    return guided_refinement(rec_set, oracles, lambda r, _: volume(r), diagsearch)
+    return guided_refinement(rec_set, oracles, lambda r, _: volume(r), diagsearch=diagsearch)
