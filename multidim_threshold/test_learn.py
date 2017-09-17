@@ -1,5 +1,7 @@
 from nose2.tools import params
 import unittest
+import hypothesis.strategies as st
+from hypothesis import given, note, assume
 
 import multidim_threshold as mdt
 import numpy as np
@@ -7,77 +9,118 @@ import funcy as fn
 
 from functools import partial
 
-r0 = mdt.Rec(np.array([-1]), np.array([1]))
-p0 = np.array([0])
-f0 = mdt.Rec(np.array([0]), np.array([1]))
-b0 = mdt.Rec(np.array([-1]), np.array([0]))
-i0 = set()
-n0 = np.array([1])
-F0 = lambda x: x@n0 > 0
+def to_rec(xs):
+    bots = [b for b, _ in xs]
+    tops = [max(b + d, 1) for b, d in xs]
+    return mdt.utils.Rec(bot=bots, top=tops)
 
-r1 = mdt.Rec(np.array([-1, -2]), np.array([1, 2]))
-p1 = np.array([0, 0])
-f1 = mdt.Rec(np.array([0, 0]), np.array([1, 2]))
-b1 = mdt.Rec(np.array([-1, -2]), np.array([0, 0]))
-i1 = {mdt.Rec((0, -2), (1, 0)), mdt.Rec((-1, 0), (0, 2))}
-n1 = np.array([1, 1]) / np.sqrt(2)
-F1 = lambda x: x @n1 > 0
-
-r2 = mdt.Rec(np.array([-2, -1, -2]), np.array([3, 1, 3]))
-p2 = np.array([0, 0, 0])
-f2 = mdt.Rec(np.array([0, 0, 0]), np.array([3, 1, 3]))
-b2 = mdt.Rec(np.array([-2, -1, -2]), np.array([0, 0, 0]))
-n2 = np.array([1, 1, 1]) / np.sqrt(3)
-F2 = lambda x: x @n2 > 0
-
-ex1d = (lambda p: p > 5.435, lambda p: p - 5.435,
-        mdt.Rec(np.array([-9]), np.array([9])))
+GEN_RECS = st.builds(to_rec, st.lists(st.tuples(
+    st.floats(min_value=0, max_value=1), 
+    st.floats(min_value=0, max_value=1)), min_size=1, max_size=5))
 
 
-class TestMultidimSearch(unittest.TestCase):
+@given(GEN_RECS)
+def test_vol(rec):
+    assert 1 >= mdt.volume(rec) >= 0
 
-    @params((r0, 2), (r1, 8), (r2, 50))
-    def test_volume(self, r, vol):
-        self.assertEqual(mdt.volume(r), vol)
 
-    @params((r0, p0, f0), (r1, p1, f1), (r2, p2, f2))
-    def test_forward_cone(self, r, p, forward):
-        forward = mdt.to_tuple(forward)
-        forward2 = mdt.to_tuple(mdt.forward_cone(p, r))
-        self.assertEqual(forward2, forward)
+@given(GEN_RECS)
+def test_forward_cone(r):
+    p = (np.array(r.bot) + 0.1).clip(max=1)
+    f = mdt.forward_cone(p, r)
+    assert mdt.volume(r) >= mdt.volume(f) >= 0
+    assert r.top == f.top
+    assert (r.bot <= f.bot).all()
 
-    @params((r0, p0, b0), (r1, p1, b1), (r2, p2, b2))
-    def test_backward_cone(self, r, p, backward):
-        backward = mdt.to_tuple(backward)
-        backward2 = mdt.to_tuple(mdt.backward_cone(p, r))
-        self.assertEqual(backward2, backward)
 
-    @params((r0, p0, i0), (r1, p1, i1))
-    def test_incomparables(self, r, mid, i):
-        self.assertEqual(set(map(mdt.to_tuple,
-                                 mdt.generate_incomparables(mid, mid, r))), i)
+@given(GEN_RECS)
+def test_backward_cone(r):
+    p = (np.array(r.bot) + 0.1).clip(max=1)
+    b = mdt.backward_cone(p, r)
+    assert mdt.volume(r) >= mdt.volume(b) >= 0
+    assert r.bot == b.bot
+    assert (r.top >= b.top).all()
 
-    @params((r0, F0), (r1, F1))
-    def test_binsearch(self, r, f):
-        lo, mid, hi = mdt.binsearch(r, f, eps=0.0001)
-        for i in mid:
-            self.assertAlmostEqual(i, 0, places=3)
 
-    @params(ex1d)
-    def test_equiv_1d_mids(self, f, r, rec):
-        lo1, _, hi1 = mdt.binsearch(rec, f, eps=0.001)
-        lo2, _, hi2 = mdt.weightedbinsearch(rec, r, eps=0.01)
-        self.assertAlmostEqual(float((lo1+hi1))/2, float((lo2 + hi1))/2, places=1)
+@given(GEN_RECS)
+def test_incomparables(r):
+    p = (np.array(r.bot) + 0.1).clip(max=1)
+    n = len(r.bot)
+    incomparables = list(mdt.generate_incomparables(p, p, r))
 
-    @params(ex1d)
-    def test_polarity_invariant_1d(self, f, r, rec):
-        neg_f = lambda p: not f(p)
-        neg_r = lambda p: -r(p)
+    # asert number of incomparables
+    if n <= 1:
+        assert len(incomparables) == 0
+    else:
+        assert len(incomparables) == 2**n - 2
 
-        _, mid1, _ = mdt.binsearch(rec, f, eps=0.0001)
-        _, mid2, _ = mdt.binsearch(rec, neg_f, eps=0.0001)
-        self.assertAlmostEqual(float(mid1 - mid2), 0, places=3)
 
-        _, mid1, _ = mdt.weightedbinsearch(rec, r, eps=0.0001)
-        _, mid2, _ = mdt.weightedbinsearch(rec, neg_r, eps=0.0001)
-        self.assertAlmostEqual(float(mid1 - mid2), 0, places=3)
+@given(GEN_RECS)
+def test_incomparables(r):
+    p = (np.array(r.bot) + 0.1).clip(max=1)
+    n = len(r.bot)
+    incomparables = list(mdt.generate_incomparables(p, p, r))
+
+    # asert number of incomparables
+    if n <= 1:
+        assert len(incomparables) == 0
+    else:
+        assert len(incomparables) == 2**n - 2
+
+
+@given(GEN_RECS)
+def test_box_edges(r):
+    n = len(r.bot)
+    m = len(list(mdt.box_edges(r)))
+    assert m == n*2**(n-1)
+
+
+def _staircase(n):
+    xs = np.linspace(0, 0.9, n)
+    ys = xs[::-1]
+    return xs, ys
+
+
+def staircase_oracle(xs, ys):
+    return lambda p: any(p[0] >= x and p[1] >= y for x,y in zip(xs, ys))
+
+
+GEN_STAIRCASES = st.builds(_staircase, st.integers(min_value=1, max_value=100))
+
+
+@given(GEN_STAIRCASES)
+def test_stair_case(xys):
+    xs, ys = xys
+    f = staircase_oracle(xs, ys)
+
+    # Check that staircase works as expected
+    for x, y in zip(xs, ys):
+        assert f((x, y))
+        assert f((x + 0.1, y+0.1))
+        assert not f((x-0.1, y-0.1))
+
+    # Check bounding box is tight
+    unit_rec = mdt.Rec(bot=np.array((0, 0)), top=(1,1))
+    max_xy = np.array([max(xs), max(ys)])
+    bounding = mdt.bounding_box(unit_rec, f)
+
+    assert (unit_rec.top >= bounding.top).all()
+    assert (unit_rec.bot <= bounding.bot).all()
+    np.testing.assert_array_almost_equal(bounding.top, max_xy, decimal=1)
+
+    # Check iterations are bounded
+    refiner = mdt.volume_guided_refinement([(0, bounding)], {0:f})
+    prev, i = None, 0
+    for i, rec_set in enumerate(refiner):
+        if rec_set == prev:
+            break
+        prev, i = rec_set, i+1
+    assert i <= 2*len(xs)
+
+    # Check that for staircase shape
+    tops = sorted([r.top for _, (_, r) in rec_set])
+    ys2 = list(fn.pluck(1, tops))
+    np.testing.assert_array_almost_equal(
+        ys2, sorted(ys2, reverse=True), decimal=2)
+
+    # TODO: rounding to the 1/len(x) should recover xs and ys

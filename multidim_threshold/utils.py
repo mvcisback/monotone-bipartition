@@ -15,7 +15,7 @@ def to_rec(lo, hi):
 
 
 def volume(rec: Rec):
-    return np.prod(np.abs(np.array(rec.bot) - np.array(rec.top)))
+    return np.prod(np.array(rec.top) - np.array(rec.bot))
 
 
 def basis_vec(i, dim):
