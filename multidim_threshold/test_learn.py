@@ -124,3 +124,17 @@ def test_stair_case(xys):
         ys2, sorted(ys2, reverse=True), decimal=2)
 
     # TODO: rounding to the 1/len(x) should recover xs and ys
+
+
+@given(GEN_STAIRCASES)
+def test_diagonal_hausdorff(xys):
+    xs, ys = xys
+    f = staircase_oracle(xs, ys)
+    unit_rec = mdt.Rec(bot=np.array((0, 0)), top=(1,1))
+    bounding = mdt.bounding_box(unit_rec, f)
+    refiner = mdt.volume_guided_refinement([(0, bounding)], {0:f})
+    prev, i = None, 0
+    for i, rec_set in enumerate(refiner):
+        if rec_set == prev:
+            break
+        assert mdt.approx_dH_inf(rec_set, rec_set) == (0, 0)

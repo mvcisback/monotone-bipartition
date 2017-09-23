@@ -34,3 +34,12 @@ def basis_vecs(dim):
 def bounding_rec(recs):
     recs = np.array(list(recs))
     return Rec(recs.min(axis=0), recs.max(axis=0))
+
+
+def approx_dH_inf(rec_set1, rec_set2):
+    """Interval containing the Hausdorff distance between two rec
+    sets"""
+    # TODO
+    return (0, float('inf'))
+    
+    

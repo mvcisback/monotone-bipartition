@@ -95,6 +95,7 @@ def _refiner(oracle, diagsearch=None, antichains=False):
 def guided_refinement(rec_set, oracles, cost, prune=lambda *_: False, 
                       diagsearch=None, *, antichains=False):
     """Generator for iteratively approximating the oracle's threshold."""
+    # TODO: automatically apply bounding box computation. Yield that first.
     refiners = {k: _refiner(o, antichains) for k, o in oracles.items()}
     queue = [(cost(rec, tag), (tag, to_tuple(rec))) for tag, rec in rec_set 
              if not prune(rec, tag)]
