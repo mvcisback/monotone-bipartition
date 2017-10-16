@@ -138,16 +138,9 @@ class Interval(namedtuple("Interval", ['start', 'end'])):
 
 def hausdorff(x, y):
     return max(directed_hausdorff(x, y), directed_hausdorff(y, x))
-    
 
-@given(st.integers(min_value=0, max_value=100))
-def test_stair_case1(k):
-    def discretize(intvl):
-        p1, p2 = intvl
-        xs = np.linspace(p1.x, p2.x, 2+k) 
-        ys = np.linspace(p1.y, p2.y, 2+k)
-        return [Point2d(x, y) for x, y in product(xs, ys)]
 
+def staircase_hausroff(f1, f2):
     def additional_points(i1, i2):
         '''Minimal distance points between intvl1 and intvl2.''' 
         xs1, xs2 = {i1.start.x, i1.end.x}, {i2.start.x, i2.end.x}
@@ -157,6 +150,23 @@ def test_stair_case1(k):
         new_f1 = {p for p in all_points if p in i1}
         new_f2 = {p for p in all_points if p in i2}
         return new_f1, new_f2
+
+    f1_intervals = [Interval(p1, p2) for p1, p2 in zip(f1, f1[1:])]
+    f2_intervals = [Interval(p1, p2) for p1, p2 in zip(f2, f2[1:])]    
+    f1_extras, f2_extras = zip(*(additional_points(i1, i2) for i1, i2 in
+                                 product(f1_intervals, f2_intervals)))
+    F1 = set(f1) | set.union(*f1_extras)
+    F2 = set(f2) | set.union(*f2_extras)
+    return hausdorff(np.array(list(F1)), np.array(list(F2)))
+
+
+@given(st.integers(min_value=0, max_value=100))
+def test_staircase_hausdorff(k):
+    def discretize(intvl):
+        p1, p2 = intvl
+        xs = np.linspace(p1.x, p2.x, 2+k) 
+        ys = np.linspace(p1.y, p2.y, 2+k)
+        return [Point2d(x, y) for x, y in product(xs, ys)]
         
     f1 = [Point2d(0, 1), Point2d(4, 1), Point2d(4, 0), Point2d(5, 0)]
     f2 = [Point2d(0, 0.9), Point2d(1, 0.9), Point2d(1, 0), 
@@ -168,30 +178,14 @@ def test_stair_case1(k):
     assert len(f1_hat) == (len(f1)-1)*k + len(f1)
     assert len(f2_hat) == (len(f2)-1)*k + len(f2)
 
-    # Check that interval calculus works as expected
-    f1_intervals = [Interval(p1, p2) for p1, p2 in zip(f1, f1[1:])]
-    f2_intervals = [Interval(p1, p2) for p1, p2 in zip(f2, f2[1:])]
-    assert len(f1_intervals) == len(f1) - 1
-    assert len(f2_intervals) == len(f2) - 1
-    assert all(any(p in i for i in f1_intervals) for p in f1)
-    assert all(any(p in i for i in f2_intervals) for p in f2)
-
-    f1_extras, f2_extras = zip(*(additional_points(i1, i2) for i1, i2 in
-                                 product(f1_intervals, f2_intervals)))
-    F1 = np.array(list(set(f1) | set.union(*f1_extras)))
-    F2 = np.array(list(set(f1) | set.union(*f2_extras)))
-
-    # TODO: check that hausdorff distance of f1_extended, f2_extended
-    # is less than f1, f2 forall
+    # Check extended array has smaller distance
     d1, _, _ = hausdorff(np.array(f1), np.array(f2))
-    d2, _, _ = hausdorff(F1, F2)
+    d2, _, _ = staircase_hausroff(f1, f2)
     assert d2 <= d1
-    assert hausdorff(F1, F1)[0] == hausdorff(F2, F2)[0] == 0
-    
 
 
 @given(st.tuples(GEN_STAIRCASES, GEN_STAIRCASES))
-def test_staircase_hausdorff(data):
+def test_staircase_hausdorff_bounds(data):
     (xs1, ys1), (xs2, ys2) = data
     f1 = staircase_oracle(xs1, ys1)
     f2 = staircase_oracle(xs2, ys2)
