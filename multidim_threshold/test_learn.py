@@ -81,6 +81,7 @@ def test_box_edges(r):
 
 def _staircase(n):
     xs = np.linspace(0, 0.9, n)
+    xs = list(fn.mapcat(lambda x: [x, x], xs))[1:]
     ys = xs[::-1]
     return xs, ys
 
@@ -89,7 +90,7 @@ def staircase_oracle(xs, ys):
     return lambda p: any(p[0] >= x and p[1] >= y for x,y in zip(xs, ys))
 
 
-GEN_STAIRCASES = st.builds(_staircase, st.integers(min_value=1, max_value=100))
+GEN_STAIRCASES = st.builds(_staircase, st.integers(min_value=2, max_value=6))
 
 
 @given(GEN_STAIRCASES)
@@ -160,17 +161,17 @@ def staircase_hausroff(f1, f2):
     return hausdorff(np.array(list(F1)), np.array(list(F2)))
 
 
-@given(st.integers(min_value=0, max_value=100))
-def test_staircase_hausdorff(k):
+@given(st.integers(min_value=0, max_value=10), GEN_STAIRCASES, GEN_STAIRCASES)
+def test_staircase_hausdorff(k, xys1, xys2):
     def discretize(intvl):
         p1, p2 = intvl
         xs = np.linspace(p1.x, p2.x, 2+k) 
         ys = np.linspace(p1.y, p2.y, 2+k)
         return [Point2d(x, y) for x, y in product(xs, ys)]
         
-    f1 = [Point2d(0, 1), Point2d(4, 1), Point2d(4, 0), Point2d(5, 0)]
-    f2 = [Point2d(0, 0.9), Point2d(1, 0.9), Point2d(1, 0), 
-              Point2d(4, 0), Point2d(5, 0)]
+    f1 = [Point2d(x, y) for x,y in zip(*xys1)]
+    f2 = [Point2d(x, y) for x,y in zip(*xys2)]
+
     f1_hat = set(fn.mapcat(discretize, zip(f1, f1[1:])))
     f2_hat = set(fn.mapcat(discretize, zip(f2, f2[1:])))
 
