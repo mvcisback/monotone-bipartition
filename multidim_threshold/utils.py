@@ -43,3 +43,17 @@ def approx_dH_inf(rec_set1, rec_set2):
     return (0, float('inf'))
     
     
+def dist_rec_upperbound(r1, r2):
+    rec = Rec(np.minimum(r1.bot, r2.bot), np.maximum(r1.top, r2.top))
+    if dist_rec_lowerbound(r1, r2) ==  0:
+        return 0
+    return np.linalg.norm(rec.top - rec.bot, ord=float('inf'))
+
+def dist_rec_lowerbound(r1, r2):
+    def dist(axis):
+        (a,b), (c, d) = axis
+        f = sorted([a,b,c,d])
+        if set(f[:2]) & set([a, b]) and set(f[:2]) & set([c, d]):
+            return 0
+        return f[2] - f[1]
+    return max(map(dist, zip(zip(*r1), zip(*r2))))

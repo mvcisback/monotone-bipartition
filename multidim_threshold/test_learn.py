@@ -130,6 +130,21 @@ def test_stair_case(xys):
 
     # TODO: rounding to the 1/len(x) should recover xs and ys
 
+@given(GEN_RECS)
+def test_rec_bounds(r):
+    r = mdt.Rec(np.array(r.bot), np.array(r.top))
+    lb = mdt.utils.dist_rec_lowerbound(r,r)
+    ub = mdt.utils.dist_rec_upperbound(r,r)
+    assert mdt.utils.dist_rec_lowerbound(r,r) == lb
+    assert mdt.utils.dist_rec_upperbound(r,r) == ub
+    
+    diam = np.linalg.norm(r.top - r.bot, ord=float('inf'))
+    r2 = mdt.Rec(r.bot + (diam + 1), r.top + (diam + 1))
+    ub = mdt.utils.dist_rec_upperbound(r,r2)
+    lb = mdt.utils.dist_rec_lowerbound(r,r2)
+    assert 0 < diam <= lb < ub
+    assert abs(2*diam + 1 - ub) <= 0.001
+
 
 Point2d = namedtuple("Point2d", ['x', 'y'])
 class Interval(namedtuple("Interval", ['start', 'end'])):
