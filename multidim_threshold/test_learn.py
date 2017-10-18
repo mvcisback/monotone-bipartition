@@ -1,15 +1,15 @@
-from itertools import product
+from itertools import product, combinations
 from collections import namedtuple
 
 import unittest
 import hypothesis.strategies as st
-from hypothesis import given, note, assume
+from hypothesis import given, note, event
 from lenses import lens
+import pytest
 
 import multidim_threshold as mdt
 import numpy as np
 import funcy as fn
-from scipy.spatial.distance import directed_hausdorff
 
 from functools import partial
 
@@ -26,6 +26,13 @@ GEN_RECS = st.builds(to_rec, st.lists(st.tuples(
 @given(GEN_RECS)
 def test_vol(rec):
     assert 1 >= mdt.volume(rec) >= 0
+
+
+def relative_lo_hi(r, i1, i2):
+    lo, hi = sorted([i1, i2])
+    bot, diag = np.array(r.bot), np.array(r.top) - np.array(r.bot)
+    f = lambda t: bot + diag*t
+    return tuple(f(lo)), tuple(f(hi))
 
 
 @given(GEN_RECS)
@@ -46,30 +53,42 @@ def test_backward_cone(r):
     assert (r.top >= b.top).all()
 
 
-@given(GEN_RECS)
-def test_incomparables(r):
-    p = (np.array(r.bot) + 0.1).clip(max=1)
+@given(GEN_RECS, st.floats(min_value=0, max_value=1), 
+       st.floats(min_value=0, max_value=1))
+def test_backward_forward_cone_relations(r, i1, i2):
+    lo, hi = relative_lo_hi(r, i1, i2)
+    b, f = mdt.backward_cone(hi, r), mdt.forward_cone(lo, r)
+    assert mdt.utils.intersect(b, f)
+    assert r == mdt.utils.Rec(b.bot, f.top)
+
+
+@given(GEN_RECS, st.floats(min_value=0, max_value=1), 
+       st.floats(min_value=0, max_value=1))
+def test_gen_incomparables(r, i1, i2):
+    lo, hi = relative_lo_hi(r, i1, i2)
     n = len(r.bot)
-    incomparables = list(mdt.generate_incomparables(p, p, r))
+    r = mdt.Rec(*map(tuple, r))
+    subdivison = list(mdt.Rec(*map(tuple, i)) for i in mdt.subdivide(lo, hi, r))
+    if n == 1 or (lo, hi) == r:
+        assert len(subdivison) == 0
+        return
+    assert len(subdivison) != 0
 
-    # asert number of incomparables
-    if n <= 1:
-        assert len(incomparables) == 0
-    else:
-        assert len(incomparables) == 2**n - 2
+    v = mdt.volume(r)
+    diam = np.linalg.norm(np.array(r.top) - np.array(r.bot))
+    diam2 = np.linalg.norm(np.array(hi) - np.array(lo))
+    if v == 0:
+        assert max(mdt.volume(r2) for r2 in subdivison) == 0
+    elif diam != pytest.approx(diam2):
+        assert max(mdt.volume(r2) for r2 in subdivison) < v
 
+    # test Containment
+    assert all(mdt.utils.contains(r, i) for i in subdivison)
 
-@given(GEN_RECS)
-def test_incomparables(r):
-    p = (np.array(r.bot) + 0.1).clip(max=1)
-    n = len(r.bot)
-    incomparables = list(mdt.generate_incomparables(p, p, r))
-
-    # asert number of incomparables
-    if n <= 1:
-        assert len(incomparables) == 0
-    else:
-        assert len(incomparables) == 2**n - 2
+    # test Intersections
+    subdivison = set(subdivison)
+    assert all(mdt.utils.intersect(i, i2) for i, i2 in
+               combinations(subdivison, 2))
 
 
 @given(GEN_RECS)
@@ -91,59 +110,90 @@ def staircase_oracle(xs, ys):
 
 
 GEN_STAIRCASES = st.builds(_staircase, st.integers(min_value=2, max_value=6))
+GEN_POINTS = st.lists(st.tuples(st.floats(min_value=0, max_value=1), 
+                                st.floats(min_value=0, max_value=1)), max_size=100)
 
-
-@given(GEN_STAIRCASES)
-def test_stair_case(xys):
+@given(GEN_STAIRCASES, GEN_POINTS)
+def test_staircase_oracle(xys, test_points):
     xs, ys = xys
     f = staircase_oracle(xs, ys)
-
     # Check that staircase works as expected
+
     for x, y in zip(xs, ys):
         assert f((x, y))
         assert f((x + 0.1, y+0.1))
         assert not f((x-0.1, y-0.1))
 
+    for a, b in test_points:
+        assert f((a, b)) == any(a >= x and b >= y for x, y in zip(*xys))
+
+    
+
+
+@given(GEN_STAIRCASES)
+def test_staircase_refinement(xys):
+    xs, ys = xys
+    f = staircase_oracle(xs, ys)
+
     # Check bounding box is tight
-    unit_rec = mdt.Rec(bot=np.array((0, 0)), top=(1,1))
     max_xy = np.array([max(xs), max(ys)])
+    unit_rec = mdt.Rec(bot=np.array((0, 0)), top=(1,1))
     bounding = mdt.bounding_box(unit_rec, f)
 
     assert (unit_rec.top >= bounding.top).all()
     assert (unit_rec.bot <= bounding.bot).all()
     np.testing.assert_array_almost_equal(bounding.top, max_xy, decimal=1)
 
-    # Check iterations are bounded
+
     refiner = mdt.volume_guided_refinement([(0, bounding)], {0:f})
-    prev, i = None, 0
-    for i, rec_set in enumerate(refiner):
-        if rec_set == prev:
+    prev = None
+    # Test properties until refined to fixed point
+    for i, tagged_rec_set in enumerate(refiner):
+        rec_set = set(r for _, (_, r) in tagged_rec_set)
+        if max(mdt.volume(r) for r in rec_set) < 1e-3:
             break
-        prev, i = rec_set, i+1
-    assert i <= 2*len(xs)
+        assert i <= 2*len(xs)
+        prev = rec_set
+
+    # TODO: check that the recset contains the staircase
+    # Check that the recset refines the previous one
+    event(f"len {len(rec_set)}")
+    event(f"volume {max(mdt.volume(r) for r in rec_set)}")
+    if len(rec_set) > 1:
+        assert all(any(mdt.utils.contains(r1, r2) for r2 in rec_set) 
+                   for r1 in prev)
+
+        # Check that the recset is not disjoint
+        assert all(any(mdt.utils.intersect(r1, r2) for r2 in rec_set - {r1}) 
+                       for r1 in rec_set)
 
     # Check that for staircase shape
-    tops = sorted([r.top for _, (_, r) in rec_set])
+    tops = sorted([r.top for r in rec_set])
     ys2 = list(fn.pluck(1, tops))
     np.testing.assert_array_almost_equal(
         ys2, sorted(ys2, reverse=True), decimal=2)
 
     # TODO: rounding to the 1/len(x) should recover xs and ys
 
+EPS=1e-4
+
 @given(GEN_RECS)
 def test_rec_bounds(r):
     r = mdt.Rec(np.array(r.bot), np.array(r.top))
     lb = mdt.utils.dist_rec_lowerbound(r,r)
     ub = mdt.utils.dist_rec_upperbound(r,r)
-    assert mdt.utils.dist_rec_lowerbound(r,r) == lb
-    assert mdt.utils.dist_rec_upperbound(r,r) == ub
+    assert 0 == lb
+    if mdt.utils.degenerate(r):
+        assert 0 == ub
     
     diam = np.linalg.norm(r.top - r.bot, ord=float('inf'))
     r2 = mdt.Rec(r.bot + (diam + 1), r.top + (diam + 1))
     ub = mdt.utils.dist_rec_upperbound(r,r2)
     lb = mdt.utils.dist_rec_lowerbound(r,r2)
-    assert 0 < diam <= lb < ub
-    assert abs(2*diam + 1 - ub) <= 0.001
+
+    assert 0 <= diam 
+    assert diam <= lb or lb == pytest.approx(diam, EPS)
+    assert lb <= ub
 
 
 Point2d = namedtuple("Point2d", ['x', 'y'])
@@ -152,11 +202,14 @@ class Interval(namedtuple("Interval", ['start', 'end'])):
         return (self.start.x <= point.x <= self.end.x 
                 and self.start.y <= point.y <= self.end.y)
 
+
 def hausdorff(x, y):
-    return max(directed_hausdorff(x, y), directed_hausdorff(y, x))
+    f = lambda a, b: np.linalg.norm(a - b, ord=float('inf'))
+    return max(mdt.directed_hausdorff(x, y, metric=f),
+               mdt.directed_hausdorff(y, x, metric=f))
 
 
-def staircase_hausroff(f1, f2):
+def staircase_hausdorff(f1, f2, return_expanded=False):
     def additional_points(i1, i2):
         '''Minimal distance points between intvl1 and intvl2.''' 
         xs1, xs2 = {i1.start.x, i1.end.x}, {i2.start.x, i2.end.x}
@@ -171,9 +224,9 @@ def staircase_hausroff(f1, f2):
     f2_intervals = [Interval(p1, p2) for p1, p2 in zip(f2, f2[1:])]    
     f1_extras, f2_extras = zip(*(additional_points(i1, i2) for i1, i2 in
                                  product(f1_intervals, f2_intervals)))
-    F1 = set(f1) | set.union(*f1_extras)
-    F2 = set(f2) | set.union(*f2_extras)
-    return hausdorff(np.array(list(F1)), np.array(list(F2)))
+    F1 = np.array(list(set(f1) | set.union(*f1_extras)))
+    F2 = np.array(list(set(f2) | set.union(*f2_extras)))
+    return hausdorff(F1, F2)
 
 
 @given(st.integers(min_value=0, max_value=10), GEN_STAIRCASES, GEN_STAIRCASES)
@@ -183,7 +236,7 @@ def test_staircase_hausdorff(k, xys1, xys2):
         xs = np.linspace(p1.x, p2.x, 2+k) 
         ys = np.linspace(p1.y, p2.y, 2+k)
         return [Point2d(x, y) for x, y in product(xs, ys)]
-        
+
     f1 = [Point2d(x, y) for x,y in zip(*xys1)]
     f2 = [Point2d(x, y) for x,y in zip(*xys2)]
 
@@ -195,13 +248,44 @@ def test_staircase_hausdorff(k, xys1, xys2):
     assert len(f2_hat) == (len(f2)-1)*k + len(f2)
 
     # Check extended array has smaller distance
-    d1, _, _ = hausdorff(np.array(f1), np.array(f2))
-    d2, _, _ = staircase_hausroff(f1, f2)
+    d1 = hausdorff(np.array(f1), np.array(f2))
+    d2 = staircase_hausdorff(f1, f2)
     assert d2 <= d1
 
 
 @given(st.tuples(GEN_STAIRCASES, GEN_STAIRCASES))
 def test_staircase_hausdorff_bounds(data):
     (xs1, ys1), (xs2, ys2) = data
-    f1 = staircase_oracle(xs1, ys1)
-    f2 = staircase_oracle(xs2, ys2)
+
+    f1 = [Point2d(x, y) for x,y in zip(*(xs1, ys1))]
+    f2 = [Point2d(x, y) for x,y in zip(*(xs2, ys2))]
+
+    o1 = staircase_oracle(xs1, ys1)
+    o2 = staircase_oracle(xs2, ys2)
+    unit_rec = mdt.Rec(bot=np.array((0, 0)), top=(1,1))
+    bounding1 = mdt.bounding_box(unit_rec, o1)
+    unit_rec = mdt.Rec(bot=np.array((0, 0)), top=(1,1))
+    bounding2 = mdt.bounding_box(unit_rec, o2)
+    
+    refiner1 = mdt.volume_guided_refinement([(0, bounding1)], {0:o1})
+    refiner2 = mdt.volume_guided_refinement([(0, bounding2)], {0:o2})
+
+    d12 = staircase_hausdorff(f1, f2)
+    
+    prev1 = prev2 = None
+    for rec_set1, rec_set2 in zip(refiner1, refiner2):
+        rec_set1 = set(r for _, (_, r) in rec_set1)
+        rec_set2 = set(r for _, (_, r) in rec_set2)
+        
+        if max(mdt.volume(r) for r in rec_set1 | rec_set2) < 1e-3:
+            break
+
+        prev1, prev2 = rec_set1, rec_set2
+        d12_lb, d12_ub = mdt.approx_dH_inf(rec_set1, rec_set2)
+        # TODO
+        #assert d12_lb <= d12 <= d12
+        #assert d12 <= d12_ub
+        
+    # TODO: fix
+    #assert d12_lb == pytest.approx(d12)
+    #assert d12 == pytest.approx(d12_ub, abs=0.3)

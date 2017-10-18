@@ -8,7 +8,7 @@ from numpy import array
 import funcy as fn
 
 import multidim_threshold as mdt
-from multidim_threshold.utils import Result, Rec, to_rec, volume, basis_vecs
+from multidim_threshold.utils import Rec, to_rec, volume, basis_vecs
 from multidim_threshold.search import binsearch
 
 
@@ -26,28 +26,37 @@ def backward_cone(p: array, r: Rec) -> Rec:
     return Rec(r.bot, p)
 
 
-def generate_incomparables(lo, hi, r):
+def select_rec(intervals, j, lo, hi):
+    def include_error(i, k, l, h):
+        idx = (j >> k) & 1
+        l2, h2 = i[idx]
+        return min(l2, l), max(h, h2)
+
+    chosen_rec = [include_error(i, k, l, h) for k, (l, h, i) in enumerate(zip(lo, hi, intervals))]
+    error_intervals = zip(lo, hi)
+    return Rec(*zip(*chosen_rec))
+
+
+def subdivide(lo, hi, r):
     """Generate all 2^n - 2 incomparable hyper-boxes.
-    TODO: clean up
+    TODO: Do not generate unnecessary dimensions for degenerate surfaces
     """
-    forward, backward = forward_cone(lo, r), backward_cone(hi, r)
-    bases = (backward.bot, forward.bot)
-    diags = (backward.top - backward.bot, forward.top - forward.bot)
-    dim = len(bases[0])
-    basis = basis_vecs(dim)
-    for i in range(1, dim):
-        for es in combinations(basis, i):
-            vs = tuple(sum((diag @e) * e for e in es) for diag in diags)
-            yield Rec(*[base + v for base, v in zip(bases, vs)])
+    r = Rec(*map(tuple, r))
+    lo, hi = tuple(lo), tuple(hi)
+    n = len(r.bot)    
+    if n <= 1:
+        return
+    forward, backward = forward_cone(tuple(lo), r), backward_cone(tuple(hi), r)
+    intervals = list(zip(zip(*backward), zip(*forward)))
+    x = set(select_rec(intervals, j, lo, hi) for j in range(1, 2**n-1))
+    yield from x - {r}
 
 
 def refine(rec: Rec, diagsearch, antichains=False):
-    if (rec.bot == rec.top).all():
-        return [rec]
     low, _, high = diagsearch(rec)
     if antichains and (low == high).all():
         return [Rec(low, low)]
-    return list(generate_incomparables(low, high, rec))
+    return list(subdivide(low, high, rec))
 
 
 def box_edges(r):
@@ -102,7 +111,7 @@ def guided_refinement(rec_set, oracles, cost, prune=lambda *_: False,
     heapify(queue)
     for refiner in refiners.values():
         next(refiner)
-
+    
     while queue:
         yield queue
         _, (tag, rec) = hpop(queue)
@@ -113,4 +122,4 @@ def guided_refinement(rec_set, oracles, cost, prune=lambda *_: False,
 
 
 def volume_guided_refinement(rec_set, oracles, diagsearch=None):
-    return guided_refinement(rec_set, oracles, lambda r, _: volume(r), diagsearch=diagsearch)
+    return guided_refinement(rec_set, oracles, lambda r, _: -volume(r), diagsearch=diagsearch)
