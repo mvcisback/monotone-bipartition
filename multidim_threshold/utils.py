@@ -19,10 +19,10 @@ def volume(rec: Rec):
     return np.prod(np.array(rec.top) - np.array(rec.bot))
 
 def infinity_volume(rec: Rec):
-    return max(t-b for b,t in rec.intervals)
+    return max(rec.diag)
 
 def smallest_edge(rec: Rec):
-    return min(t-b for b,t in rec.intervals)
+    return min(rec.diag)
 
 
 def basis_vec(i, dim):
@@ -86,7 +86,7 @@ def dist_rec_upperbound(r1, r2):
 
 
 def degenerate(r):
-    return any(x == y for x, y in zip(r.top, r.bot))
+    return any(x == 0 for x in r.diag)
 
 def contains(r1, r2):
     return all(a1 >= a2 and b1 <= b2

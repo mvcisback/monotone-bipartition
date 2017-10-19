@@ -10,8 +10,7 @@ import funcy as fn
 import multidim_threshold as mdt
 from multidim_threshold.utils import to_rec, volume, basis_vecs, smallest_edge, degenerate
 from multidim_threshold.search import binsearch
-from multidim_threshold.rectangles import Rec
-
+from multidim_threshold.rectangles import Rec, intervals_lens
 
 
 def forward_cone(p: array, r: Rec) -> Rec:
@@ -24,14 +23,15 @@ def backward_cone(p: array, r: Rec) -> Rec:
     return Rec(tuple(zip(r.bot, p)))
 
 
-def select_rec(intervals, j, lo, hi):
+def _select_rec(intervals, j, lo, hi):
     def include_error(i, k, l, h):
         idx = (j >> k) & 1
         l2, h2 = i[idx]
         return min(l2, l), max(h, h2)
 
-    chosen_rec = tuple(include_error(i, k, l, h) for k, (l, h, i) in enumerate(zip(lo, hi, intervals)))
-    return Rec(intervals=chosen_rec)
+    chosen_rec = tuple(include_error(i, k, l, h) for k, (l, h, i) 
+                       in enumerate(zip(lo, hi, intervals)))
+    return Rec(chosen_rec)
 
 
 def subdivide(lo, hi, r, drop_fb=True):
@@ -44,7 +44,7 @@ def subdivide(lo, hi, r, drop_fb=True):
         return
     forward, backward = forward_cone(tuple(lo), r), backward_cone(tuple(hi), r)
     intervals = list(zip(backward.intervals, forward.intervals))
-    x = set(select_rec(intervals, j, lo, hi) for j in range(1, 2**n-1))
+    x = {_select_rec(intervals, j, lo, hi) for j in range(1, 2**n-1)}
     yield from x - {r}
 
 
@@ -90,7 +90,7 @@ def bounding_box(r: Rec, oracle):
             yield max(v[0][idx] for v in vals)
             
     top = np.array(list(_top_components()))
-    return Rec(intervals=tuple(zip(r.bot, top)))
+    return intervals_lens.set(tuple(zip(r.bot, top)))(r)
 
 
 def _refiner(oracle, diagsearch=None, antichains=False):
@@ -106,8 +106,7 @@ def guided_refinement(rec_set, oracles, cost, prune=lambda *_: False,
     """Generator for iteratively approximating the oracle's threshold."""
     # TODO: automatically apply bounding box computation. Yield that first.
     refiners = {k: _refiner(o, antichains) for k, o in oracles.items()}
-    queue = [(cost(rec, tag), (tag, rec)) for tag, rec in rec_set 
-             if not prune(rec, tag)]
+    queue = [(cost(rec), (rec)) for rec in rec_set if not prune(rec)]
     heapify(queue)
     for refiner in refiners.values():
         next(refiner)
@@ -116,13 +115,15 @@ def guided_refinement(rec_set, oracles, cost, prune=lambda *_: False,
     while queue:
         # TODO: when bounding
         yield queue
-        _, (tag, rec) = hpop(queue)
-        subdivided, error = refiners[tag].send(rec)
+        _, rec = hpop(queue)
+        subdivided, error = refiners[rec.tag].send(rec)
         for r in subdivided:
-            if prune(r, tag):
+            if prune(r):
                 continue
-            hpush(queue, (cost(r, tag), (tag, r)))
+            # Copy over correct meta data
+            r = Rec(r.intervals, error=error, tag=rec.tag)
+            hpush(queue, (cost(r), r))
 
 
 def volume_guided_refinement(rec_set, oracles, diagsearch=None):
-    return guided_refinement(rec_set, oracles, lambda r, _: -smallest_edge(r), diagsearch=diagsearch)
+    return guided_refinement(rec_set, oracles, lambda r: -smallest_edge(r), diagsearch=diagsearch)

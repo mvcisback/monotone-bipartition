@@ -140,19 +140,19 @@ def test_staircase_refinement(xys):
 
     # Check bounding box is tight
     max_xy = np.array([max(xs), max(ys)])
-    unit_rec = mdt.Rec(((0, 1), (0,1)))
+    unit_rec = mdt.Rec(((0, 1), (0,1)), tag=0)
     bounding = mdt.bounding_box(unit_rec, f)
 
     assert all(a >= b for a,b in zip(unit_rec.top, bounding.top))
     assert all(a <= b for a,b in zip(unit_rec.bot, bounding.bot))
     np.testing.assert_array_almost_equal(bounding.top, max_xy, decimal=1)
 
-
-    refiner = mdt.volume_guided_refinement([(0, bounding)], {0:f})
+    
+    refiner = mdt.volume_guided_refinement([bounding], {0:f})
     prev = None
     # Test properties until refined to fixed point
     for i, tagged_rec_set in enumerate(refiner):
-        rec_set = set(r for _, (_, r) in tagged_rec_set)
+        rec_set = set(r for _, r in tagged_rec_set)
         if max(mdt.smallest_edge(r) for r in rec_set) < 1e-3:
             break
         assert i <= 2*len(xs)
@@ -260,18 +260,18 @@ def test_staircase_hausdorff_bounds(data):
 
     o1 = staircase_oracle(xs1, ys1)
     o2 = staircase_oracle(xs2, ys2)
-    unit_rec = mdt.Rec(((0, 1), (0, 1)))
+    unit_rec = mdt.Rec(((0, 1), (0, 1)), tag=0)
     bounding1 = mdt.bounding_box(unit_rec, o1)
     bounding2 = mdt.bounding_box(unit_rec, o2)
     
-    refiner1 = mdt.volume_guided_refinement([(0, bounding1)], {0:o1})
-    refiner2 = mdt.volume_guided_refinement([(0, bounding2)], {0:o2})
+    refiner1 = mdt.volume_guided_refinement([bounding1], {0:o1})
+    refiner2 = mdt.volume_guided_refinement([bounding2], {0:o2})
 
     d12 = staircase_hausdorff(f1, f2)
     
-    for rec_set1, rec_set2 in zip(refiner1, refiner2):
-        rec_set1 = set(r for _, (_, r) in rec_set1)
-        rec_set2 = set(r for _, (_, r) in rec_set2)
+    for queue1, queue2 in zip(refiner1, refiner2):
+        rec_set1 = set(r for _, r in queue1)
+        rec_set2 = set(r for _, r in queue2)
         d12_lb, d12_ub = mdt.approx_dH_inf(rec_set1, rec_set2)
         assert d12_lb <= d12
         assert d12 <= d12_ub
