@@ -26,5 +26,7 @@ class Rec(NamedTuple):
         return tuple(t-b for b, t in zip(self.bot, self.top))
 Rec.__new__.__defaults__ = (None, None)
 
+# Lenses to update rectangles and keep other book keeping
+error_lens = lens.GetAttr('intervals')
 intervals_lens = lens.GetAttr('intervals')
 tag_lens = lens.GetAttr('tag')

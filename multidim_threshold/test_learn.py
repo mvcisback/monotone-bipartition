@@ -165,6 +165,7 @@ def test_staircase_refinement(xys):
     if len(rec_set) > 1:
         assert all(any(mdt.utils.contains(r1, r2) for r2 in rec_set) 
                    for r1 in prev)
+    assert max(r.error for r in rec_set) <=1e-3
 
         # Check that the recset is not disjoint
         # TODO
@@ -186,7 +187,7 @@ def test_rec_bounds(r):
 
     bot, top = np.array(r.bot), np.array(r.top)
     diam = np.linalg.norm(top - bot, ord=float('inf'))
-    r2 = mdt.Rec(tuple(zip(bot + (diam + 1), top + (diam + 1))))
+    r2 = mdt.Rec(tuple(zip(bot + (diam + 1), top + (diam + 1))), error=0)
     ub = mdt.utils.dist_rec_upperbound(r,r2)
     lb = mdt.utils.dist_rec_lowerbound(r,r2)
 

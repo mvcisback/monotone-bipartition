@@ -90,7 +90,9 @@ def bounding_box(r: Rec, oracle):
             yield max(v[0][idx] for v in vals)
             
     top = np.array(list(_top_components()))
-    return intervals_lens.set(tuple(zip(r.bot, top)))(r)
+    intervals = tuple(zip(r.bot, top))
+    error = max(t-b for b,t in intervals)
+    return Rec(intervals=intervals, tag=r.tag, error=error)
 
 
 def _refiner(oracle, diagsearch=None, antichains=False):
@@ -106,10 +108,12 @@ def guided_refinement(rec_set, oracles, cost, prune=lambda *_: False,
     """Generator for iteratively approximating the oracle's threshold."""
     # TODO: automatically apply bounding box computation. Yield that first.
     refiners = {k: _refiner(o, antichains) for k, o in oracles.items()}
-    queue = [(cost(rec), (rec)) for rec in rec_set if not prune(rec)]
-    heapify(queue)
     for refiner in refiners.values():
         next(refiner)
+    queue = [(cost(rec), bounding_box(rec, oracles[rec.tag])) for rec 
+             in rec_set if not prune(rec)]
+    heapify(queue)
+
     
     # TODO: when bounding box is implemented initial error is given by that
     while queue:

@@ -60,8 +60,7 @@ def approx_dH_inf(rec_set1, rec_set2, blame=False):
     
     
 def dist_rec_lowerbound(r1, r2):
-    # TODO: to use g1, need to pass in to size of wortst case lo-hi
-    #g1 = lambda x: max(x[2] - x[0], x[3] - x[1], 0)
+    #g1 = lambda x: max(x[2] - x[0] - error, x[3] - x[1] - error, 0)
     g2 = lambda x: max(x[2] - x[1], 0)
     def dist(axis):
         (a,b), (c, d) = axis
