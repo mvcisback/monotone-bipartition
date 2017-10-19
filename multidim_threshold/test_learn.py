@@ -38,7 +38,7 @@ def relative_lo_hi(r, i1, i2):
 
 @given(GEN_RECS)
 def test_forward_cone(r):
-    p = (np.array(r.bot) + 0.1).clip(max=1)
+    p = tuple((np.array(r.bot) + 0.1).clip(max=1))
     f = mdt.forward_cone(p, r)
     assert mdt.volume(r) >= mdt.volume(f) >= 0
     assert r.top == f.top
