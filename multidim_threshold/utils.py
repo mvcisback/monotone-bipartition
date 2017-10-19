@@ -4,8 +4,9 @@ from collections import namedtuple, Iterable
 import funcy as fn
 import numpy as np
 
+from multidim_threshold.rectangles import Rec
+
 Result = namedtuple("Result", "unexplored")
-Rec = namedtuple("Rec", "bot top")
 
 map_tuple = fn.partial(map, tuple)
 
@@ -16,6 +17,12 @@ def to_rec(lo, hi):
 
 def volume(rec: Rec):
     return np.prod(np.array(rec.top) - np.array(rec.bot))
+
+def infinity_volume(rec: Rec):
+    return max(t-b for b,t in rec.intervals)
+
+def smallest_edge(rec: Rec):
+    return min(t-b for b,t in rec.intervals)
 
 
 def basis_vec(i, dim):
@@ -31,9 +38,9 @@ def basis_vecs(dim):
     return [basis_vec(i, dim) for i in range(dim)]
 
 
-def bounding_rec(recs):
-    recs = np.array(list(recs))
-    return Rec(recs.min(axis=0), recs.max(axis=0))
+#def bounding_rec(recs):
+#    recs = np.array(list(recs))
+#    return Rec(recs.min(axis=0), recs.max(axis=0))
 
 
 def directed_hausdorff(rec_set1, rec_set2, *, metric):
@@ -42,7 +49,7 @@ def directed_hausdorff(rec_set1, rec_set2, *, metric):
     return max(min(metric(r1, r2) for r1 in rec_set1) for r2 in rec_set2)
 
 
-def approx_dH_inf(rec_set1, rec_set2):
+def approx_dH_inf(rec_set1, rec_set2, blame=False):
     """Interval containing the Hausdorff distance between two rec
     sets"""
     dHlb = lambda rs1, rs2: directed_hausdorff(rs1, rs2, metric=dist_rec_lowerbound)
@@ -52,36 +59,34 @@ def approx_dH_inf(rec_set1, rec_set2):
     return (lb, ub)
     
     
-def dist_rec_upperbound(r1, r2):
-    def dist(axis):
-        (a,b), (c, d) = axis
-        f = sorted([a,b,c,d])
-        return f[-1] - f[0]
-
-    # TODO: clean up
-    r1, r2 = Rec(*map(tuple, r1)), Rec(*map(tuple, r2))
-    if r1 == r2 and degenerate(r1):
-        return 0
-
-    return min(map(dist, zip(zip(*r1), zip(*r2))))
-
-
 def dist_rec_lowerbound(r1, r2):
+    # TODO: to use g1, need to pass in to size of wortst case lo-hi
+    #g1 = lambda x: max(x[2] - x[0], x[3] - x[1], 0)
+    g2 = lambda x: max(x[2] - x[1], 0)
     def dist(axis):
         (a,b), (c, d) = axis
         f = sorted([a,b,c,d])
         if set(f[:2]) & set([a, b]) and set(f[:2]) & set([c, d]):
             return 0
-        return f[2] - f[1]
+        return g2(f)
+    return max(map(dist, zip(r1.intervals, r2.intervals)))
 
-    return max(map(dist, zip(zip(*r1), zip(*r2))))
+
+def dist_rec_upperbound(r1, r2):
+    def dist(axis):
+        (a,b), (c, d) = axis
+        f = sorted([a,b,c,d])
+        return f[-1] - f[0]
+    # TODO: clean up
+    #r1, r2 = Rec(*map(tuple, r1)), Rec(*map(tuple, r2))
+    if r1 == r2 and degenerate(r1):
+        return 0
+
+    return max(map(dist, zip(r1.intervals, r2.intervals)))
 
 
 def degenerate(r):
     return any(x == y for x, y in zip(r.top, r.bot))
-
-def intersect(r1, r2):
-    return dist_rec_lowerbound(r1, r2) == 0
 
 def contains(r1, r2):
     return all(a1 >= a2 and b1 <= b2

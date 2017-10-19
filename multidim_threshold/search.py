@@ -14,7 +14,7 @@ def binsearch(r: Rec, oracle, eps=1e-3):
     Returns the lower and upper approximation on the diagonal.
     """
     lo, hi = 0, 1
-    bot, top = map(np.array, r)
+    bot, top = np.array(r.bot), np.array(r.top)
     diag = top - bot
     f = lambda t: bot + t * diag
     feval = lambda t: oracle(f(t))
