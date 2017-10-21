@@ -205,7 +205,8 @@ class Interval(namedtuple("Interval", ['start', 'end'])):
 
 
 def hausdorff(x, y):
-    f = lambda a, b: np.linalg.norm(a - b, ord=float('inf'))
+    f = lambda a, b: np.linalg.norm(
+        np.array(a) - np.array(b), ord=float('inf'))
     return max(mdt.directed_hausdorff(x, y, metric=f),
                mdt.directed_hausdorff(y, x, metric=f))
 
@@ -225,8 +226,8 @@ def staircase_hausdorff(f1, f2, return_expanded=False):
     f2_intervals = [Interval(p1, p2) for p1, p2 in zip(f2, f2[1:])]    
     f1_extras, f2_extras = zip(*(additional_points(i1, i2) for i1, i2 in
                                  product(f1_intervals, f2_intervals)))
-    F1 = np.array(list(set(f1) | set.union(*f1_extras)))
-    F2 = np.array(list(set(f2) | set.union(*f2_extras)))
+    F1 = list(set(f1) | set.union(*f1_extras))
+    F2 = list(set(f2) | set.union(*f2_extras))
     return hausdorff(F1, F2)
 
 
@@ -249,7 +250,7 @@ def test_staircase_hausdorff(k, xys1, xys2):
     assert len(f2_hat) == (len(f2)-1)*k + len(f2)
 
     # Check extended array has smaller distance
-    d1 = hausdorff(np.array(f1), np.array(f2))
+    d1 = hausdorff(f1, f2)
     d2 = staircase_hausdorff(f1, f2)
     assert d2 <= d1
 

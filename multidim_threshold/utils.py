@@ -1,5 +1,5 @@
 from itertools import chain, product
-from collections import namedtuple, Iterable
+from collections import namedtuple, Iterable, defaultdict
 
 import funcy as fn
 import numpy as np
@@ -44,20 +44,29 @@ def basis_vecs(dim):
     return [basis_vec(i, dim) for i in range(dim)]
 
 
-#def bounding_rec(recs):
-#    recs = np.array(list(recs))
-#    return Rec(recs.min(axis=0), recs.max(axis=0))
+def _compute_responses(rec_set1, rec_set2, metric):
+    best_responses = defaultdict(lambda: (0, set()))
+    for r1, r2 in product(rec_set1, rec_set2):
+        value, members = best_responses[r1]
+        response = metric(r1, r2)
+        if response == value:
+            members.add(r2)
+        elif response <= value:
+            best_responses[r1] = (response, {r2})
+    return best_responses
 
 
 def directed_hausdorff(rec_set1, rec_set2, *, metric):
-    """Interval containing the Hausdorff distance between two rec
-    sets"""
-    return max(min(metric(r1, r2) for r1 in rec_set1) for r2 in rec_set2)
+    best_responses = _compute_responses(rec_set1, rec_set2, metric)
+    return max(d for d, _ in best_responses.values())
 
 
-def approx_dH_inf(rec_set1, rec_set2, blame=False):
-    """Interval containing the Hausdorff distance between two rec
-    sets"""
+def directed_hausdorff_no_bookkeeping(rec_set1, rec_set2, *, metric):
+    return max((min(metric(r1, r2) for r1 in rec_set1)) for r2 in rec_set2)
+
+
+def approx_dH_inf(rec_set1, rec_set2):
+    """Interval containing the Hausdorff distance between two rec sets"""
     dHlb = lambda rs1, rs2: directed_hausdorff(rs1, rs2, metric=dist_rec_lowerbound)
     dHub = lambda rs1, rs2: directed_hausdorff(rs1, rs2, metric=dist_rec_upperbound)
     lb = max(dHlb(rec_set1, rec_set2), dHlb(rec_set2, rec_set1))
@@ -82,12 +91,13 @@ def dist_rec_upperbound(r1, r2):
         (a,b), (c, d) = axis
         f = sorted([a,b,c,d])
         return f[-1] - f[0]
-    # TODO: clean up
-    #r1, r2 = Rec(*map(tuple, r1)), Rec(*map(tuple, r2))
     if r1 == r2 and degenerate(r1):
         return 0
 
     return max(map(dist, zip(r1.intervals, r2.intervals)))
+
+def dist_rec_bounds(r1, r2):
+    return dist_rec_lowerbound(r1, r2), dist_rec_upperbound(r1, r2)
 
 
 def degenerate(r):

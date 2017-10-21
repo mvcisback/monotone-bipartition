@@ -8,7 +8,7 @@ from numpy import array
 import funcy as fn
 
 import multidim_threshold as mdt
-from multidim_threshold.utils import to_rec, volume, basis_vecs, smallest_edge, degenerate, avg_edge, longest_edge
+from multidim_threshold.utils import volume, basis_vecs, degenerate, approx_dH_inf, dist_rec_bounds
 from multidim_threshold.search import binsearch
 from multidim_threshold.rectangles import Rec, intervals_lens, Interval
 
@@ -139,3 +139,11 @@ def guided_refinement(rec_set, oracle, cost, prune=lambda *_: False,
 def volume_guided_refinement(rec_set, oracle, diagsearch=None):
     f = lambda r: -volume(r)
     return guided_refinement(rec_set, oracle, f, diagsearch=diagsearch)
+
+
+def hausdorff_approxes(r1:Rec, r2:Rec, f1, f2):
+    recs1, recs2 = {bounding_box(r1, f1)}, {bounding_box(r2, f2)}
+    
+    # TODO
+    while True:
+        yield approx_dH_inf(recs1, recs2)
