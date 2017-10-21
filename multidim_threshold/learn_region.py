@@ -8,9 +8,9 @@ from numpy import array
 import funcy as fn
 
 import multidim_threshold as mdt
-from multidim_threshold.utils import to_rec, volume, basis_vecs, smallest_edge, degenerate
+from multidim_threshold.utils import to_rec, volume, basis_vecs, smallest_edge, degenerate, avg_edge, longest_edge
 from multidim_threshold.search import binsearch
-from multidim_threshold.rectangles import Rec, intervals_lens
+from multidim_threshold.rectangles import Rec, intervals_lens, Interval
 
 
 def forward_cone(p: array, r: Rec) -> Rec:
@@ -34,14 +34,25 @@ def _select_rec(intervals, j, lo, hi):
     return Rec(chosen_rec)
 
 
+def bloat(r: Rec, eps=1e-3):
+    def _bloat(i:Interval):
+        top, bot = i
+        if abs(top - bot) > eps:
+            return i
+        return (bot - eps, top+eps)
+    f = lambda xs: tuple(map(_bloat, xs))
+    return intervals_lens.modify(f)(r)
+
+
 def subdivide(lo, hi, r, drop_fb=True):
     """Generate all 2^n - 2 incomparable hyper-boxes.
     TODO: Do not generate unnecessary dimensions for degenerate surfaces
     """
-    lo, hi = tuple(lo), tuple(hi)
-    n = len(r.bot)    
+    n = len(r.bot)
     if n <= 1:
         return
+    r = bloat(r)
+    lo, hi = tuple(lo), tuple(hi)
     forward, backward = forward_cone(tuple(lo), r), backward_cone(tuple(hi), r)
     intervals = list(zip(backward.intervals, forward.intervals))
     x = {_select_rec(intervals, j, lo, hi) for j in range(1, 2**n-1)}
@@ -91,8 +102,7 @@ def bounding_box(r: Rec, oracle):
             
     top = np.array(list(_top_components()))
     intervals = tuple(zip(r.bot, top))
-    error = max(t-b for b,t in intervals)
-    return Rec(intervals=intervals, tag=r.tag, error=error)
+    return Rec(intervals=intervals)
 
 
 def _refiner(oracle, diagsearch=None, antichains=False):
@@ -103,31 +113,29 @@ def _refiner(oracle, diagsearch=None, antichains=False):
         rec = yield refine(rec, diagsearch, antichains)
 
 
-def guided_refinement(rec_set, oracles, cost, prune=lambda *_: False, 
+def guided_refinement(rec_set, oracle, cost, prune=lambda *_: False, 
                       diagsearch=None, *, antichains=False):
     """Generator for iteratively approximating the oracle's threshold."""
     # TODO: automatically apply bounding box computation. Yield that first.
-    refiners = {k: _refiner(o, antichains) for k, o in oracles.items()}
-    for refiner in refiners.values():
-        next(refiner)
-    queue = [(cost(rec), bounding_box(rec, oracles[rec.tag])) for rec 
-             in rec_set if not prune(rec)]
+    refiner = _refiner(oracle, diagsearch, antichains)
+    next(refiner)
+    queue = [(cost(rec), bounding_box(rec, oracle)) for rec in rec_set]
     heapify(queue)
-
     
     # TODO: when bounding box is implemented initial error is given by that
     while queue:
         # TODO: when bounding
         yield queue
         _, rec = hpop(queue)
-        subdivided, error = refiners[rec.tag].send(rec)
+        subdivided, error = refiner.send(rec)
         for r in subdivided:
             if prune(r):
                 continue
             # Copy over correct meta data
-            r = Rec(r.intervals, error=error, tag=rec.tag)
+            r = Rec(r.intervals)
             hpush(queue, (cost(r), r))
 
 
-def volume_guided_refinement(rec_set, oracles, diagsearch=None):
-    return guided_refinement(rec_set, oracles, lambda r: -smallest_edge(r), diagsearch=diagsearch)
+def volume_guided_refinement(rec_set, oracle, diagsearch=None):
+    f = lambda r: -volume(r)
+    return guided_refinement(rec_set, oracle, f, diagsearch=diagsearch)

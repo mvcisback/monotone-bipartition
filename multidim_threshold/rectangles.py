@@ -10,8 +10,6 @@ class Interval(NamedTuple):
 
 class Rec(NamedTuple):
     intervals: Iterable[Interval]
-    tag: Hashable
-    error: float
     
     @property
     def bot(self):

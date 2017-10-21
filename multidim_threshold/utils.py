@@ -24,6 +24,12 @@ def infinity_volume(rec: Rec):
 def smallest_edge(rec: Rec):
     return min(rec.diag)
 
+def longest_edge(rec: Rec):
+    return max(rec.diag)
+
+def avg_edge(rec: Rec):
+    return sum(rec.diag)/len(rec.diag)
+
 
 def basis_vec(i, dim):
     """Basis vector i"""
