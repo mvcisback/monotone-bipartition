@@ -60,7 +60,7 @@ def subdivide(lo, hi, r, drop_fb=True):
     yield from x - {r}
 
 
-def refine(rec: Rec, diagsearch, antichains=False):
+def refine(rec: Rec, diagsearch=binsearch, antichains=False):
     low, _, high = diagsearch(rec)
     error = max(hi - lo for lo, hi in zip(low, high))
     if (low == high).all() and antichains:
@@ -106,7 +106,7 @@ def bounding_box(r: Rec, oracle):
     return Rec(intervals=intervals)
 
 
-def _refiner(oracle, diagsearch=None, antichains=False):
+def _refiner(oracle, antichains=False):
     """Generator for iteratively approximating the oracle's threshold."""
     diagsearch = fn.partial(binsearch, oracle=oracle)    
     rec = yield
@@ -115,10 +115,10 @@ def _refiner(oracle, diagsearch=None, antichains=False):
 
 
 def guided_refinement(rec_set, oracle, cost, prune=lambda *_: False, 
-                      diagsearch=None, *, antichains=False):
+                      *, antichains=False):
     """Generator for iteratively approximating the oracle's threshold."""
     # TODO: automatically apply bounding box computation. Yield that first.
-    refiner = _refiner(oracle, diagsearch, antichains)
+    refiner = _refiner(oracle, antichains)
     next(refiner)
     queue = [(cost(rec), bounding_box(rec, oracle)) for rec in rec_set]
     heapify(queue)
@@ -137,9 +137,9 @@ def guided_refinement(rec_set, oracle, cost, prune=lambda *_: False,
             hpush(queue, (cost(r), r))
 
 
-def volume_guided_refinement(rec_set, oracle, diagsearch=None):
+def volume_guided_refinement(rec_set, oracle):
     f = lambda r: -volume(r)
-    return guided_refinement(rec_set, oracle, f, diagsearch=diagsearch)
+    return guided_refinement(rec_set, oracle, f)
 
 
 def _hausdorff_approxes(r1:Rec, r2:Rec, f1, f2, *, metric):

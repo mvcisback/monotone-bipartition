@@ -8,7 +8,7 @@ from hypothesis import given, note, event, example
 
 import multidim_threshold as mdt
 import multidim_threshold.hausdorff as mdth
-from multidim_threshold.test_learn import GEN_RECS, GEN_STAIRCASES,staircase_oracle
+from multidim_threshold.test_refine import GEN_RECS, GEN_STAIRCASES,staircase_oracle
 
 
 @given(GEN_RECS)
