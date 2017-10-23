@@ -8,7 +8,8 @@ from numpy import array
 import funcy as fn
 
 import multidim_threshold as mdt
-from multidim_threshold.utils import volume, basis_vecs, degenerate, approx_dH_inf, dist_rec_bounds
+from multidim_threshold.utils import volume, basis_vecs, degenerate
+from multidim_threshold.hausdorff import approx_dH_inf, hausdorff_lowerbound, hausdorff_upperbound
 from multidim_threshold.search import binsearch
 from multidim_threshold.rectangles import Rec, intervals_lens, Interval
 
@@ -63,9 +64,9 @@ def refine(rec: Rec, diagsearch, antichains=False):
     low, _, high = diagsearch(rec)
     error = max(hi - lo for lo, hi in zip(low, high))
     if (low == high).all() and antichains:
-        return [Rec(tuple(zip(low, low)))], error
+        return [Rec(tuple(zip(low, low)))]
 
-    return list(subdivide(low, high, rec)), error
+    return list(subdivide(low, high, rec))
 
 
 def box_edges(r):
@@ -127,7 +128,7 @@ def guided_refinement(rec_set, oracle, cost, prune=lambda *_: False,
         # TODO: when bounding
         yield queue
         _, rec = hpop(queue)
-        subdivided, error = refiner.send(rec)
+        subdivided = refiner.send(rec)
         for r in subdivided:
             if prune(r):
                 continue
@@ -141,9 +142,22 @@ def volume_guided_refinement(rec_set, oracle, diagsearch=None):
     return guided_refinement(rec_set, oracle, f, diagsearch=diagsearch)
 
 
-def hausdorff_approxes(r1:Rec, r2:Rec, f1, f2):
+def _hausdorff_approxes(r1:Rec, r2:Rec, f1, f2, *, metric):
     recs1, recs2 = {bounding_box(r1, f1)}, {bounding_box(r2, f2)}
-    
-    # TODO
+    refiner1, refiner2 = _refiner(f1), _refiner(f2)
+    next(refiner1), next(refiner2)
     while True:
-        yield approx_dH_inf(recs1, recs2)
+        d, (recs1, recs2) = metric(recs1, recs2)
+        recs1 = set.union(*(set(refiner1.send(r)) for r in recs1))
+        recs2 = set.union(*(set(refiner2.send(r)) for r in recs2))
+        yield d, (recs1, recs2)
+
+
+def hausdorff_bounds(r1:Rec, r2:Rec, f1, f2):
+    r1, r2 = bounding_box(r1, f1), bounding_box(r2, f2)
+    refiner_lower = _hausdorff_approxes(r1, r2, f1, f2, 
+                                        metric=hausdorff_lowerbound)
+    refiner_upper = _hausdorff_approxes(r1, r2, f1, f2, 
+                                        metric=hausdorff_upperbound)
+    yield from zip(refiner_lower, refiner_upper)
+
