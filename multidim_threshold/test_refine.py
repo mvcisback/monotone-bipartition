@@ -9,11 +9,13 @@ import funcy as fn
 
 from functools import partial
 
+from multidim_threshold.refine import _refiner
+
 def to_rec(xs):
     bots = [b for b, _ in xs]
     tops = [max(b + d, 1) for b, d in xs]
     intervals = tuple(zip(bots, tops))
-    return mdt.Rec(intervals=intervals)
+    return mdt.to_rec(intervals=intervals)
 
 GEN_RECS = st.builds(to_rec, st.lists(st.tuples(
     st.floats(min_value=0, max_value=1), 
@@ -35,7 +37,7 @@ def relative_lo_hi(r, i1, i2):
 @given(GEN_RECS)
 def test_forward_cone(r):
     p = tuple((np.array(r.bot) + 0.1).clip(max=1))
-    f = mdt.forward_cone(p, r)
+    f = r.forward_cone(p)
     assert mdt.volume(r) >= mdt.volume(f) >= 0
     assert r.top == f.top
     assert all(x <= y for x, y in zip(r.bot, f.bot))
@@ -44,7 +46,7 @@ def test_forward_cone(r):
 @given(GEN_RECS)
 def test_backward_cone(r):
     p = (np.array(r.bot) + 0.1).clip(max=1)
-    b = mdt.backward_cone(p, r)
+    b = r.backward_cone(p)
     assert mdt.volume(r) >= mdt.volume(b) >= 0
     assert r.bot == b.bot
     assert all(x >= y for x, y in zip(r.top, b.top))
@@ -54,11 +56,11 @@ def test_backward_cone(r):
        st.floats(min_value=0, max_value=1))
 def test_backward_forward_cone_relations(r, i1, i2):
     lo, hi = relative_lo_hi(r, i1, i2)
-    b, f = mdt.backward_cone(hi, r), mdt.forward_cone(lo, r)
+    b, f = r.backward_cone(hi), r.forward_cone(lo)
     # TOOD
     #assert mdt.utils.intersect(b, f)
     intervals = tuple(zip(b.bot, f.top))
-    assert r == mdt.Rec(intervals=intervals)
+    assert r == mdt.to_rec(intervals=intervals)
 
 
 @given(GEN_RECS, st.floats(min_value=0, max_value=1), 
@@ -66,7 +68,7 @@ def test_backward_forward_cone_relations(r, i1, i2):
 def test_gen_incomparables(r, i1, i2):
     lo, hi = relative_lo_hi(r, i1, i2)
     n = len(r.bot)
-    subdivison = list(mdt.subdivide(lo, hi, r))
+    subdivison = list(r.subdivide(mdt.to_rec(zip(lo, hi))))
     # TODO
     #if n == 1 or mdt.Rec(tuple(zip(lo, hi))) == r:
     #    assert len(subdivison) == 0
@@ -97,6 +99,13 @@ def test_box_edges(r):
     n = len(r.bot)
     m = len(list(mdt.box_edges(r)))
     assert m == n*2**(n-1)
+
+
+def test_refine():
+    rec = mdt.to_rec([(0, 1), (0, 1)])
+    refiner = _refiner(lambda p: p[0] > 0.5)
+    next(refiner)
+    refiner.send(rec)
 
 
 def _staircase(n):
@@ -139,7 +148,7 @@ def test_staircase_refinement(xys):
 
     # Check bounding box is tight
     max_xy = np.array([max(xs), max(ys)])
-    unit_rec = mdt.Rec(((0, 1), (0,1)))
+    unit_rec = mdt.to_rec(((0, 1), (0,1)))
     bounding = mdt.bounding_box(unit_rec, f)
 
     assert all(a >= b for a,b in zip(unit_rec.top, bounding.top))

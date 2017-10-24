@@ -10,63 +10,17 @@ import funcy as fn
 import multidim_threshold as mdt
 from multidim_threshold.utils import volume, basis_vecs, degenerate
 from multidim_threshold.hausdorff import approx_dH_inf, hausdorff_lowerbound, hausdorff_upperbound
-from multidim_threshold.search import binsearch
-from multidim_threshold.rectangles import Rec, intervals_lens, Interval
+from multidim_threshold.search import binsearch, SearchResultType
+from multidim_threshold.rectangles import Rec, to_rec, Interval
 
 
-def forward_cone(p: array, r: Rec) -> Rec:
-    """Computes the forward cone from point p."""
-    return Rec(tuple(zip(p, r.top)))
-
-
-def backward_cone(p: array, r: Rec) -> Rec:
-    """Computes the backward cone from point p."""
-    return Rec(tuple(zip(r.bot, p)))
-
-
-def _select_rec(intervals, j, lo, hi):
-    def include_error(i, k, l, h):
-        idx = (j >> k) & 1
-        l2, h2 = i[idx]
-        return min(l2, l), max(h, h2)
-
-    chosen_rec = tuple(include_error(i, k, l, h) for k, (l, h, i) 
-                       in enumerate(zip(lo, hi, intervals)))
-    return Rec(chosen_rec)
-
-
-def bloat(r: Rec, eps=1e-3):
-    def _bloat(i:Interval):
-        top, bot = i
-        if abs(top - bot) > eps:
-            return i
-        return (bot - eps, top+eps)
-    f = lambda xs: tuple(map(_bloat, xs))
-    return intervals_lens.modify(f)(r)
-
-
-def subdivide(lo, hi, r, drop_fb=True):
-    """Generate all 2^n - 2 incomparable hyper-boxes.
-    TODO: Do not generate unnecessary dimensions for degenerate surfaces
-    """
-    n = len(r.bot)
-    if n <= 1:
-        return
-    r = bloat(r)
-    lo, hi = tuple(lo), tuple(hi)
-    forward, backward = forward_cone(tuple(lo), r), backward_cone(tuple(hi), r)
-    intervals = list(zip(backward.intervals, forward.intervals))
-    x = {_select_rec(intervals, j, lo, hi) for j in range(1, 2**n-1)}
-    yield from x - {r}
-
-
-def refine(rec: Rec, diagsearch=binsearch, antichains=False):
-    low, _, high = diagsearch(rec)
-    error = max(hi - lo for lo, hi in zip(low, high))
-    if (low == high).all() and antichains:
-        return [Rec(tuple(zip(low, low)))]
-
-    return list(subdivide(low, high, rec))
+def refine(rec: Rec, diagsearch):
+    if rec.bot == rec.top:
+        return [rec]
+    result_type, rec2 = diagsearch(rec)
+    if result_type != SearchResultType.NON_TRIVIAL:
+        raise RuntimeError(f"Threshold function does not intersect {rec}.")
+    return list(rec.subdivide(rec2))
 
 
 def box_edges(r):
@@ -85,7 +39,7 @@ def box_edges(r):
 
     for s_mask, t_mask in fn.mapcat(_corner_edge_masks, range(n)):
         intervals = tuple(zip(bot+s_mask*diag, bot +t_mask*diag))
-        yield Rec(intervals=intervals)
+        yield to_rec(intervals=intervals)
 
 
 def bounding_box(r: Rec, oracle):
@@ -93,7 +47,7 @@ def bounding_box(r: Rec, oracle):
     basis = basis_vecs(len(r.bot))
     recs = list(box_edges(r))
 
-    tops = [(binsearch(r2, oracle)[2], tuple((np.array(r2.top)-np.array(r2.bot) != 0))) 
+    tops = [(binsearch(r2, oracle)[1].top, tuple((np.array(r2.top)-np.array(r2.bot) != 0))) 
             for r2 in recs]
     tops = fn.group_by(ig(1), tops)
     def _top_components():
@@ -103,22 +57,21 @@ def bounding_box(r: Rec, oracle):
             
     top = np.array(list(_top_components()))
     intervals = tuple(zip(r.bot, top))
-    return Rec(intervals=intervals)
+    return to_rec(intervals=intervals)
 
 
-def _refiner(oracle, antichains=False):
+def _refiner(oracle):
     """Generator for iteratively approximating the oracle's threshold."""
     diagsearch = fn.partial(binsearch, oracle=oracle)    
     rec = yield
     while True:
-        rec = yield refine(rec, diagsearch, antichains)
+        rec = yield refine(rec, diagsearch)
 
 
-def guided_refinement(rec_set, oracle, cost, prune=lambda *_: False, 
-                      *, antichains=False):
+def guided_refinement(rec_set, oracle, cost, prune=lambda *_: False):
     """Generator for iteratively approximating the oracle's threshold."""
     # TODO: automatically apply bounding box computation. Yield that first.
-    refiner = _refiner(oracle, antichains)
+    refiner = _refiner(oracle)
     next(refiner)
     queue = [(cost(rec), bounding_box(rec, oracle)) for rec in rec_set]
     heapify(queue)
@@ -132,8 +85,6 @@ def guided_refinement(rec_set, oracle, cost, prune=lambda *_: False,
         for r in subdivided:
             if prune(r):
                 continue
-            # Copy over correct meta data
-            r = Rec(r.intervals)
             hpush(queue, (cost(r), r))
 
 
@@ -160,4 +111,3 @@ def hausdorff_bounds(r1:Rec, r2:Rec, f1, f2):
     refiner_upper = _hausdorff_approxes(r1, r2, f1, f2, 
                                         metric=hausdorff_upperbound)
     yield from zip(refiner_lower, refiner_upper)
-
