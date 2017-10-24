@@ -162,7 +162,7 @@ def test_staircase_refinement(xys):
     for i, tagged_rec_set in enumerate(refiner):
         rec_set = set(r for _, r in tagged_rec_set)
         # TODO: assert convergence rather than hard coded limit
-        if max(mdt.volume(r) for r in rec_set) < 1e-3:
+        if max(mdt.volume(r) for r in rec_set) < 1e-1:
             break
         assert i <= 2*len(xs)
         prev = rec_set

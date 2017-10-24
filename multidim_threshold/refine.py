@@ -9,19 +9,9 @@ import funcy as fn
 
 import multidim_threshold as mdt
 from multidim_threshold.utils import volume, basis_vecs, degenerate
-from multidim_threshold.hausdorff import approx_dH_inf, hausdorff_lowerbound, hausdorff_upperbound
+from multidim_threshold.hausdorff import hausdorff_lowerbound, hausdorff_upperbound
 from multidim_threshold.search import binsearch, SearchResultType
 from multidim_threshold.rectangles import Rec, to_rec, Interval
-
-
-def refine(rec: Rec, diagsearch):
-    if rec.bot == rec.top:
-        return [rec]
-    result_type, rec2 = diagsearch(rec)
-    if result_type != SearchResultType.NON_TRIVIAL:
-        raise RuntimeError(f"Threshold function does not intersect {rec}.")
-    return list(rec.subdivide(rec2))
-
 
 def box_edges(r):
     """Produce all n*2**(n-1) edges.
@@ -58,6 +48,16 @@ def bounding_box(r: Rec, oracle):
     top = np.array(list(_top_components()))
     intervals = tuple(zip(r.bot, top))
     return to_rec(intervals=intervals)
+
+
+def refine(rec: Rec, diagsearch):
+    if rec.bot == rec.top:
+        return [rec]
+
+    result_type, rec2 = diagsearch(rec)
+    if result_type != SearchResultType.NON_TRIVIAL:
+        raise RuntimeError(f"Threshold function does not intersect {rec}.")
+    return list(rec.subdivide(rec2))
 
 
 def _refiner(oracle):

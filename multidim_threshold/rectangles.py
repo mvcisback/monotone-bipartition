@@ -74,12 +74,15 @@ class Rec(NamedTuple):
         n = self.dim
         if n <= 1:
             return
-        r = self.bloat()
+        elif drop_fb:
+            indicies = range(1, 2**n-1)
+        else:
+            indicies = range(0, 2**n)
         lo, hi = rec2.bot, rec2.top
-        forward, backward = r.forward_cone(lo), r.backward_cone(hi)
+        forward, backward = self.forward_cone(lo), self.backward_cone(hi)
         intervals = list(zip(backward.intervals, forward.intervals))
-        x = {_select_rec(intervals, j, lo, hi) for j in range(1, 2**n-1)}
-        yield from x - {r}
+        x = {_select_rec(intervals, j, lo, hi) for j in indicies}
+        yield from x - {self}
 
 
 def to_rec(intervals):

@@ -4,7 +4,7 @@ from itertools import product
 from multidim_threshold import degenerate
 
 def _compute_responses(rec_set1, rec_set2, metric):
-    best_responses = defaultdict(lambda: 0)
+    best_responses = defaultdict(lambda: float('inf'))
     for r1, r2 in product(rec_set1, rec_set2):
         response = metric(r1, r2)
         if response <= best_responses[r1]:
@@ -30,13 +30,6 @@ def hausdorff(rec_set1, rec_set2, *, metric):
 def directed_hausdorff_no_bookkeeping(rec_set1, rec_set2, *, metric):
     return max((min(metric(r1, r2) for r1 in rec_set1)) for r2 in rec_set2)
 
-
-def approx_dH_inf(rec_set1, rec_set2):
-    """Interval containing the Hausdorff distance between two rec sets"""
-    lb, *_ = hausdorff(rec_set1, rec_set2, metric=dist_rec_lowerbound)
-    ub, *_ = hausdorff(rec_set1, rec_set2, metric=dist_rec_upperbound)
-    return (lb, ub)
-    
     
 def dist_rec_lowerbound(r1, r2):
     #g1 = lambda x: max(x[2] - x[0] - error, x[3] - x[1] - error, 0)

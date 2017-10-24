@@ -3,11 +3,11 @@ from itertools import product
 
 import numpy as np
 import funcy as fn
+import pytest
 import hypothesis.strategies as st
 from hypothesis import given, note, event, example
 
 import multidim_threshold as mdt
-from multidim_threshold.rectangles import Interval
 import multidim_threshold.hausdorff as mdth
 from multidim_threshold.test_refine import GEN_RECS, GEN_STAIRCASES,staircase_oracle
 
@@ -30,15 +30,14 @@ def test_rec_bounds(r):
 
 
 Point2d = namedtuple("Point2d", ['x', 'y'])
-
-def hausdorff(x, y):
-    f = lambda a, b: np.linalg.norm(
-        np.array(a) - np.array(b), ord=float('inf'))
-    return mdth.hausdorff(x, y, metric=f)[0]
+class Interval(namedtuple("Interval", ['start', 'end'])):
+    def __contains__(self, point):
+        return (self.start.x <= point.x <= self.end.x 
+                and self.start.y <= point.y <= self.end.y)
 
 
 @given(st.lists(GEN_RECS, min_size=1), st.lists(GEN_RECS, min_size=1))
-#@example([mdt.Rec(((0, 0.4), (0,0.4)))], [mdt.Rec(((0.5, 1), (0.5,1)))])
+@example([mdt.to_rec(((0, 0.4), (0,0.4)))], [mdt.to_rec(((0.5, 1), (0.5,1)))])
 def test_directed_hausdorff(rec_set1, rec_set2):
     d12, req12 = mdth.directed_hausdorff(rec_set1, rec_set2,
                                  metric=mdth.dist_rec_lowerbound)
@@ -69,13 +68,23 @@ def test_hausdorff(rec_set1, rec_set2):
     event(f"d={d12}")
 
 
+def hausdorff(xs, ys):
+    d = lambda a, b: np.linalg.norm(
+        np.array(a) - np.array(b), ord=float('inf'))
+    dXY = directed_hausdorff(xs, ys, d=d)
+    dYX = directed_hausdorff(ys, xs, d=d)
+    return max(dXY, dYX)
+
+
+def directed_hausdorff(xs, ys, d):
+    return max(min(d(x, y) for y in ys) for x in xs)
 
 
 def staircase_hausdorff(f1, f2, return_expanded=False):
     def additional_points(i1, i2):
         '''Minimal distance points between intvl1 and intvl2.''' 
-        xs1, xs2 = {i1.bot.x, i1.top.x}, {i2.bot.x, i2.top.x}
-        ys1, ys2 = {i1.bot.y, i1.top.y}, {i2.bot.y, i2.top.y}
+        xs1, xs2 = {i1.start.x, i1.end.x}, {i2.start.x, i2.end.x}
+        ys1, ys2 = {i1.start.y, i1.end.y}, {i2.start.y, i2.end.y}
         all_points = [Point2d(x, y) for x, y in 
                       fn.chain(product(xs1, ys2), product(xs2, ys1))]
         new_f1 = {p for p in all_points if p in i1}
@@ -91,7 +100,7 @@ def staircase_hausdorff(f1, f2, return_expanded=False):
     return hausdorff(F1, F2)
 
 
-@given(st.integers(min_value=0, max_value=10), GEN_STAIRCASES, GEN_STAIRCASES)
+@given(st.integers(min_value=0, max_value=4), GEN_STAIRCASES, GEN_STAIRCASES)
 def test_staircase_hausdorff(k, xys1, xys2):
     def discretize(intvl):
         p1, p2 = intvl
@@ -110,11 +119,13 @@ def test_staircase_hausdorff(k, xys1, xys2):
     assert len(f2_hat) == (len(f2)-1)*k + len(f2)
 
     # Check extended array has smaller distance
-    d1 = hausdorff(f1, f2)
+    d1 = hausdorff(f1_hat, f2_hat)
     d2 = staircase_hausdorff(f1, f2)
     event(f"d1, d2={d1, d2}")
-    assert d2 <= d1
+    assert d2 <= d1 or pytest.approx(d1) == d2
 
+"""
+TODO
 @given(GEN_STAIRCASES, GEN_STAIRCASES)
 #@example(([0,0,1], [1, 1, 0]), ([0,1,1], [1, 1, 0]))
 #@example(([0,0,1], [0.9, 0.9, 0.1]), ([0,1,1], [1, 0, 0]))
@@ -133,7 +144,28 @@ def test_staircase_hausdorff_bounds(xys1, xys2):
         assert d_l <= d <= d_u
         if d_u - d_l < 1e-2:
             break
+        elif i > 2:
+            assert False
     event(f"i={i}")
 
     event(f'xys1 == xys2: {xys1 == xys2}')
     event(f'xys1 == xys2: {xys1 == xys2}')
+"""
+
+
+@given(GEN_STAIRCASES)
+def test_staircase_hausdorff_bounds(xys):
+    (xs, ys) = xys
+
+    f = [Point2d(x, y) for x,y in zip(*(xs, ys))]
+    oracle = staircase_oracle(xs, ys)
+    unit_rec = mdt.to_rec([(0, 1), (0, 1)])
+    d = staircase_hausdorff(f, f)
+    d_bounds = mdt.hausdorff_bounds(unit_rec, unit_rec, oracle, oracle)
+    for i, ((d_l, _), (d_u, _)) in enumerate(d_bounds):
+        assert d_l <= d <= d_u
+        if d_u - d_l < 1e-2:
+            break
+        elif i > 4:
+            assert False
+
