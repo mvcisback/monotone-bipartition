@@ -15,7 +15,9 @@ class SearchResultType(Enum):
     TRIVIALLY_TRUE = auto()
     NON_TRIVIAL = auto()
 
+
 SearchResult = Tuple[SearchResultType, Optional[Rec]]
+
 
 def binsearch(r: Rec, oracle, eps=1e-3) -> SearchResult:
     """Binary search over the diagonal of the rectangle.

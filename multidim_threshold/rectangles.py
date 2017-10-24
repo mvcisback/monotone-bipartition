@@ -9,6 +9,7 @@ bot_lens = lens.intervals.Each().bot
 top_lens = lens.intervals.Each().top
 intervals_lens = lens.GetAttr('intervals')
 
+
 class Interval(NamedTuple):
     bot: float
     top: float
@@ -17,7 +18,6 @@ class Interval(NamedTuple):
         if isinstance(x, Interval):
             return self.bot <= x.bot and x.top <= self.top
         return self.bot <= x <= self.top
-
 
     @property
     def radius(self):
@@ -30,12 +30,15 @@ def _select_rec(intervals, j, lo, hi):
         l2, h2 = i[idx]
         return min(l2, l), max(h, h2)
 
-    chosen_rec = tuple(include_error(i, k, l, h) for k, (l, h, i) 
-                       in enumerate(zip(lo, hi, intervals)))
+    chosen_rec = tuple(
+        include_error(i, k, l, h)
+        for k, (l, h, i) in enumerate(zip(lo, hi, intervals)))
     return to_rec(chosen_rec)
+
 
 class Rec(NamedTuple):
     intervals: Iterable[Interval]
+
     @property
     def bot(self):
         return bot_lens.collect()(self)
@@ -46,17 +49,18 @@ class Rec(NamedTuple):
 
     @property
     def diag(self):
-        return tuple(t-b for b, t in zip(self.bot, self.top))
+        return tuple(t - b for b, t in zip(self.bot, self.top))
 
     @property
     def dim(self):
         return len(self.intervals)
 
     def bloat(self, eps=1e-3):
-        def _bloat(i:Interval):
+        def _bloat(i: Interval):
             if i.radius > eps:
                 return i
-            return Interval(i.bot - eps, i.top+eps)
+            return Interval(i.bot - eps, i.top + eps)
+
         return to_rec(map(_bloat, self.intervals))
 
     def forward_cone(self, p):
@@ -75,7 +79,7 @@ class Rec(NamedTuple):
         if n <= 1:
             return
         elif drop_fb:
-            indicies = range(1, 2**n-1)
+            indicies = range(1, 2**n - 1)
         else:
             indicies = range(0, 2**n)
         lo, hi = rec2.bot, rec2.top
@@ -86,5 +90,5 @@ class Rec(NamedTuple):
 
 
 def to_rec(intervals):
-    intervals =  tuple(Interval(*i) for i in intervals)
+    intervals = tuple(Interval(*i) for i in intervals)
     return Rec(intervals)
