@@ -1,9 +1,8 @@
-from typing import NamedTuple, Tuple, Iterable, TypeVar
+import operator as op
+from typing import NamedTuple, Iterable
+from functools import reduce
 
-import funcy as fn
 from lenses import lens
-
-#Interval = TypeVar('Interval')
 
 bot_lens = lens.intervals.Each().bot
 top_lens = lens.intervals.Each().top
@@ -18,6 +17,10 @@ class Interval(NamedTuple):
         if isinstance(x, Interval):
             return self.bot <= x.bot and x.top <= self.top
         return self.bot <= x <= self.top
+
+    def __and__(self, i2):
+        # TODO
+        return
 
     @property
     def radius(self):
@@ -55,13 +58,13 @@ class Rec(NamedTuple):
     def dim(self):
         return len(self.intervals)
 
-    def bloat(self, eps=1e-3):
-        def _bloat(i: Interval):
-            if i.radius > eps:
-                return i
-            return Interval(i.bot - eps, i.top + eps)
+    @property
+    def volume(self):
+        return reduce(op.mul, lens.intervals.Each().radius.collect()(self))
 
-        return to_rec(map(_bloat, self.intervals))
+    @property
+    def degenerate(r):
+        return any(x == 0 for x in r.diag)
 
     def forward_cone(self, p):
         """Computes the forward cone from point p."""
@@ -87,6 +90,9 @@ class Rec(NamedTuple):
         intervals = list(zip(backward.intervals, forward.intervals))
         x = {_select_rec(intervals, j, lo, hi) for j in indicies}
         yield from x - {self}
+
+    def __contains__(self, r):
+        return all(i2 in i1 for i1, i2 in zip(self.intervals, r.intervals))
 
 
 def to_rec(intervals):

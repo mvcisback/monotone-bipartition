@@ -1,11 +1,8 @@
-from itertools import repeat
-from collections import deque
-from math import isclose
 from enum import Enum, auto
 from typing import Optional, Tuple
 
-import numpy as np
 import funcy as fn
+import numpy as np
 
 from multidim_threshold.rectangles import to_rec, Rec
 
@@ -19,16 +16,20 @@ class SearchResultType(Enum):
 SearchResult = Tuple[SearchResultType, Optional[Rec]]
 
 
+def diagonal_convex_comb(r: Rec):
+    bot, top = np.array(r.bot), np.array(r.top)
+    diag = top - bot
+    return lambda t: bot + t * diag
+
+
 def binsearch(r: Rec, oracle, eps=1e-3) -> SearchResult:
     """Binary search over the diagonal of the rectangle.
 
     Returns the lower and upper approximation on the diagonal.
     """
+    f = diagonal_convex_comb(r)
+    feval = fn.compose(oracle, f)
     lo, hi = 0, 1
-    bot, top = np.array(r.bot), np.array(r.top)
-    diag = top - bot
-    f = lambda t: bot + t * diag
-    feval = lambda t: oracle(f(t))
 
     # Early termination via bounds checks
     if feval(lo):

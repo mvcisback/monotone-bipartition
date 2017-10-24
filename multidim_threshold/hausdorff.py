@@ -1,7 +1,7 @@
 from collections import defaultdict
 from itertools import product
 
-from multidim_threshold import degenerate
+from multidim_threshold.rectangles import Interval
 
 
 def _compute_responses(rec_set1, rec_set2, metric):
@@ -30,20 +30,13 @@ def hausdorff(rec_set1, rec_set2, *, metric):
     return max(d12, d21), (req12[0] | req21[1], req12[1] | req21[0])
 
 
-def directed_hausdorff_no_bookkeeping(rec_set1, rec_set2, *, metric):
-    return max((min(metric(r1, r2) for r1 in rec_set1)) for r2 in rec_set2)
-
-
 def dist_rec_lowerbound(r1, r2):
-    #g1 = lambda x: max(x[2] - x[0] - error, x[3] - x[1] - error, 0)
-    g2 = lambda x: max(x[2] - x[1], 0)
-
     def dist(axis):
         (a, b), (c, d) = axis
         f = sorted([a, b, c, d])
         if set(f[:2]) & set([a, b]) and set(f[:2]) & set([c, d]):
             return 0
-        return g2(f)
+        return max(f[2] - f[1], 0)
 
     return max(map(dist, zip(r1.intervals, r2.intervals)))
 
@@ -54,14 +47,14 @@ def dist_rec_upperbound(r1, r2):
         f = sorted([a, b, c, d])
         return f[-1] - f[0]
 
-    if r1 == r2 and degenerate(r1):
+    if r1 == r2 and r1.degenerate:
         return 0
 
     return max(map(dist, zip(r1.intervals, r2.intervals)))
 
 
 def dist_rec_bounds(r1, r2):
-    return dist_rec_lowerbound(r1, r2), dist_rec_upperbound(r1, r2)
+    return Interval(dist_rec_lowerbound(r1, r2), dist_rec_upperbound(r1, r2))
 
 
 def hausdorff_lowerbound(rec_set1, rec_set2):

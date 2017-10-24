@@ -1,13 +1,9 @@
 import hypothesis.strategies as st
-from hypothesis import given, note, event, example
-from lenses import lens
-import pytest
+from hypothesis import given, event
 
 import multidim_threshold as mdt
 import numpy as np
 import funcy as fn
-
-from functools import partial
 
 from multidim_threshold.refine import _refiner
 
@@ -30,13 +26,12 @@ GEN_RECS = st.builds(to_rec,
 
 @given(GEN_RECS)
 def test_vol(rec):
-    assert 1 >= mdt.volume(rec) >= 0
+    assert 1 >= rec.volume >= 0
 
 
 def relative_lo_hi(r, i1, i2):
     lo, hi = sorted([i1, i2])
-    bot, diag = np.array(r.bot), np.array(r.top) - np.array(r.bot)
-    f = lambda t: bot + diag * t
+    f = mdt.search.diagonal_convex_comb(r)
     return tuple(f(lo)), tuple(f(hi))
 
 
@@ -44,7 +39,7 @@ def relative_lo_hi(r, i1, i2):
 def test_forward_cone(r):
     p = tuple((np.array(r.bot) + 0.1).clip(max=1))
     f = r.forward_cone(p)
-    assert mdt.volume(r) >= mdt.volume(f) >= 0
+    assert r.volume >= f.volume >= 0
     assert r.top == f.top
     assert all(x <= y for x, y in zip(r.bot, f.bot))
 
@@ -53,7 +48,7 @@ def test_forward_cone(r):
 def test_backward_cone(r):
     p = (np.array(r.bot) + 0.1).clip(max=1)
     b = r.backward_cone(p)
-    assert mdt.volume(r) >= mdt.volume(b) >= 0
+    assert r.volume >= b.volume >= 0
     assert r.bot == b.bot
     assert all(x >= y for x, y in zip(r.top, b.top))
 
@@ -64,8 +59,8 @@ def test_backward_cone(r):
 def test_backward_forward_cone_relations(r, i1, i2):
     lo, hi = relative_lo_hi(r, i1, i2)
     b, f = r.backward_cone(hi), r.forward_cone(lo)
-    # TOOD
-    #assert mdt.utils.intersect(b, f)
+    # TODO
+    # assert mdt.utils.intersect(b, f)
     intervals = tuple(zip(b.bot, f.top))
     assert r == mdt.to_rec(intervals=intervals)
 
@@ -75,31 +70,9 @@ def test_backward_forward_cone_relations(r, i1, i2):
            min_value=0, max_value=1))
 def test_gen_incomparables(r, i1, i2):
     lo, hi = relative_lo_hi(r, i1, i2)
-    n = len(r.bot)
     subdivison = list(r.subdivide(mdt.to_rec(zip(lo, hi))))
-    # TODO
-    #if n == 1 or mdt.Rec(tuple(zip(lo, hi))) == r:
-    #    assert len(subdivison) == 0
-    #    return
-    #assert len(subdivison) != 0
-
-    v = mdt.volume(r)
-    diam = np.linalg.norm(np.array(r.top) - np.array(r.bot))
-    diam2 = np.linalg.norm(np.array(hi) - np.array(lo))
-    # TODO
-    #if v == 0:
-    #    assert max(mdt.volume(r2) for r2 in subdivison) == 0
-    #elif diam != pytest.approx(diam2):
-    #    assert max(mdt.volume(r2) for r2 in subdivison) < v
-
-    # test Containment
-    #assert all(mdt.utils.contains(r, i) for i in subdivison)
-
-    # test Intersections
-    subdivison = set(subdivison)
-    # TODO
-    #assert all(mdt.utils.intersect(i, i2) for i, i2 in
-    #           combinations(subdivison, 2))
+    assert all(i in r for i in subdivison)
+    # TODO test Intersections
 
 
 @given(GEN_RECS)
@@ -111,9 +84,12 @@ def test_box_edges(r):
 
 def test_refine():
     rec = mdt.to_rec([(0, 1), (0, 1)])
-    refiner = _refiner(lambda p: p[0] > 0.5)
+    refiner = _refiner(lambda p: p[0] >= 0.5)
     next(refiner)
-    refiner.send(rec)
+    subdivided = refiner.send(rec)
+    assert min(r.volume for r in subdivided) > 0
+    assert max(r.volume for r in subdivided) < rec.volume
+    assert all(r2 in rec for r2 in subdivided)
 
 
 def _staircase(n):
@@ -170,7 +146,7 @@ def test_staircase_refinement(xys):
     for i, tagged_rec_set in enumerate(refiner):
         rec_set = set(r for _, r in tagged_rec_set)
         # TODO: assert convergence rather than hard coded limit
-        if max(mdt.volume(r) for r in rec_set) < 1e-1:
+        if max(r.volume for r in rec_set) < 1e-1:
             break
         assert i <= 2 * len(xs)
         prev = rec_set
@@ -178,10 +154,10 @@ def test_staircase_refinement(xys):
     # TODO: check that the recset contains the staircase
     # Check that the recset refines the previous one
     event(f"len {len(rec_set)}")
-    event(f"volume {max(mdt.volume(r) for r in rec_set)}")
+    event(f"volume {max(r.volume for r in rec_set)}")
     if len(rec_set) > 1:
         assert all(
-            any(mdt.utils.contains(r1, r2) for r2 in rec_set) for r1 in prev)
+            any(r2 in r1 for r2 in rec_set) for r1 in prev)
 
         # Check that the recset is not disjoint
         # TODO

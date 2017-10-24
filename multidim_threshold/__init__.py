@@ -1,3 +1,3 @@
-from multidim_threshold.utils import *
+# flake8: noqa
 from multidim_threshold.search import *
 from multidim_threshold.refine import *

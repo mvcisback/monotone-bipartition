@@ -1,17 +1,15 @@
 """Implements muli-dimensional threshold discovery via binary search."""
-from itertools import combinations, product
+from itertools import product
 from heapq import heappush as hpush, heappop as hpop, heapify
 from operator import itemgetter as ig
 
 import numpy as np
-from numpy import array
 import funcy as fn
 
-import multidim_threshold as mdt
-from multidim_threshold.utils import volume, basis_vecs, degenerate
-from multidim_threshold.hausdorff import hausdorff_lowerbound, hausdorff_upperbound
+from multidim_threshold.hausdorff import (hausdorff_lowerbound,
+                                          hausdorff_upperbound)
 from multidim_threshold.search import binsearch, SearchResultType
-from multidim_threshold.rectangles import Rec, to_rec, Interval
+from multidim_threshold.rectangles import Rec, to_rec
 
 
 def box_edges(r):
@@ -38,7 +36,6 @@ def box_edges(r):
 
 def bounding_box(r: Rec, oracle):
     """Compute Bounding box. TODO: clean up"""
-    basis = basis_vecs(len(r.bot))
     recs = list(box_edges(r))
 
     tops = [(binsearch(r2, oracle)[1].top, tuple(
@@ -94,8 +91,7 @@ def guided_refinement(rec_set, oracle, cost, prune=lambda *_: False):
 
 
 def volume_guided_refinement(rec_set, oracle):
-    f = lambda r: -volume(r)
-    return guided_refinement(rec_set, oracle, f)
+    return guided_refinement(rec_set, oracle, lambda r: -r.volume)
 
 
 def _hausdorff_approxes(r1: Rec, r2: Rec, f1, f2, *, metric):
