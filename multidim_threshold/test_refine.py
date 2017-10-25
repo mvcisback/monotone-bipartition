@@ -1,10 +1,9 @@
+import funcy as fn
 import hypothesis.strategies as st
-from hypothesis import given, event
+import numpy as np
+from hypothesis import event, given
 
 import multidim_threshold as mdt
-import numpy as np
-import funcy as fn
-
 from multidim_threshold.refine import _refiner
 
 

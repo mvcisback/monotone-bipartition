@@ -1,11 +1,11 @@
 from collections import namedtuple
 from itertools import product
 
-import numpy as np
 import funcy as fn
-import pytest
 import hypothesis.strategies as st
-from hypothesis import given, event, example
+import numpy as np
+import pytest
+from hypothesis import event, example, given
 
 import multidim_threshold as mdt
 import multidim_threshold.hausdorff as mdth

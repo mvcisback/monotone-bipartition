@@ -1,6 +1,6 @@
 import operator as op
-from typing import NamedTuple, Iterable
 from functools import reduce
+from typing import Iterable, NamedTuple
 
 from lenses import lens
 
@@ -18,9 +18,16 @@ class Interval(NamedTuple):
             return self.bot <= x.bot and x.top <= self.top
         return self.bot <= x <= self.top
 
+
     def __and__(self, i2):
-        # TODO
-        return
+        bot, top = max(i2.bot, self.bot), min(i2.top, self.top)
+        if bot > top:
+            return None
+        return Interval(bot, top)
+
+    def __or__(self, i2):
+        bot, top = min(i2.bot, self.bot), max(i2.top, self.top)
+        return Interval(bot, top)
 
     @property
     def radius(self):

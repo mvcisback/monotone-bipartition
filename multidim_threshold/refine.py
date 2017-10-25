@@ -1,15 +1,17 @@
 """Implements muli-dimensional threshold discovery via binary search."""
+from heapq import heappop as hpop
+from heapq import heappush as hpush
+from heapq import heapify
 from itertools import product
-from heapq import heappush as hpush, heappop as hpop, heapify
 from operator import itemgetter as ig
 
-import numpy as np
 import funcy as fn
+import numpy as np
 
 from multidim_threshold.hausdorff import (hausdorff_lowerbound,
                                           hausdorff_upperbound)
-from multidim_threshold.search import binsearch, SearchResultType
 from multidim_threshold.rectangles import Rec, to_rec
+from multidim_threshold.search import SearchResultType, binsearch
 
 
 def box_edges(r):

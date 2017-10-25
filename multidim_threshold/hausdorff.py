@@ -1,33 +1,10 @@
 from collections import defaultdict
 from itertools import product
 
+import funcy as fn
+from lenses import bind
+
 from multidim_threshold.rectangles import Interval
-
-
-def _compute_responses(rec_set1, rec_set2, metric):
-    best_responses = defaultdict(lambda: float('inf'))
-    for r1, r2 in product(rec_set1, rec_set2):
-        response = metric(r1, r2)
-        if response <= best_responses[r1]:
-            best_responses[r1] = response
-    return best_responses
-
-
-def directed_hausdorff(rec_set1, rec_set2, *, metric):
-    response_map = _compute_responses(rec_set1, rec_set2, metric)
-    d = max(response_map.values(), default=0)
-    best_moves = {r1 for r1 in rec_set1 if response_map[r1] == d}
-    contraints = {
-        r2
-        for r2 in rec_set2 if any(metric(r1, r2) <= d for r1 in best_moves)
-    }
-    return d, (best_moves, contraints)
-
-
-def hausdorff(rec_set1, rec_set2, *, metric):
-    d12, req12 = directed_hausdorff(rec_set1, rec_set2, metric=metric)
-    d21, req21 = directed_hausdorff(rec_set2, rec_set1, metric=metric)
-    return max(d12, d21), (req12[0] | req21[1], req12[1] | req21[0])
 
 
 def dist_rec_lowerbound(r1, r2):
@@ -52,14 +29,36 @@ def dist_rec_upperbound(r1, r2):
 
     return max(map(dist, zip(r1.intervals, r2.intervals)))
 
-
 def dist_rec_bounds(r1, r2):
-    return Interval(dist_rec_lowerbound(r1, r2), dist_rec_upperbound(r1, r2))
+    return Interval(dist_rec_lowerbound, dist_rec_upperbound)
 
 
-def hausdorff_lowerbound(rec_set1, rec_set2):
-    return hausdorff(rec_set1, rec_set2, metric=dist_rec_lowerbound)
+def _compute_responses(rec_set1, rec_set2, *, metric=dist_rec_bounds):
+    best_responses = defaultdict(lambda: Interval(float('inf'), float('inf')))
+    for r1, r2 in product(rec_set1, rec_set2):
+        d, d_response = metric(r1, r2), best_responses[r1]
+        best_responses[r1] = Interval(min(d.bot, d_response.bot), 
+                                      min(d.top, d_response.top))
+    return best_responses
 
 
-def hausdorff_upperbound(rec_set1, rec_set2):
-    return hausdorff(rec_set1, rec_set2, metric=dist_rec_upperbound)
+def directed_hausdorff(recs1, recs2, *, metric=dist_rec_bounds):
+    responses = _compute_responses(rec_set1, rec_set2)
+    values = bind(responses).Values()
+
+    d = max(values[0].collect()), max(values[1].collect())
+
+    # TODO: can this be tightened? 
+    potential_moves = {r for r in recs1 if responses[r] & d}
+
+    def is_required(r2):
+        return any(responses[r2] & metric(r1, r2) for r1 in potential_moves)
+
+    required_responses = {r2 for r2 in recs2 if is_required(r2)}
+    return d, (potential_moves, required_responses)
+
+
+def hausdorff(rec_set1, rec_set2):
+    d12, req12 = directed_hausdorff(rec_set1, rec_set2)
+    d21, req21 = directed_hausdorff(rec_set2, rec_set1)
+    return max(d12, d21), (req12[0] | req21[1], req12[1] | req21[0])

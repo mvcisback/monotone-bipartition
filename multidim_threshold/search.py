@@ -4,7 +4,7 @@ from typing import Optional, Tuple
 import funcy as fn
 import numpy as np
 
-from multidim_threshold.rectangles import to_rec, Rec
+from multidim_threshold.rectangles import Rec, to_rec
 
 
 class SearchResultType(Enum):
