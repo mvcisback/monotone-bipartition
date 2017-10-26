@@ -8,9 +8,8 @@ from operator import itemgetter as ig
 import funcy as fn
 import numpy as np
 
-from multidim_threshold.hausdorff import (hausdorff_lowerbound,
-                                          hausdorff_upperbound)
-from multidim_threshold.rectangles import Rec, to_rec
+from multidim_threshold.hausdorff import hausdorff_bounds
+from multidim_threshold.rectangles import Interval, Rec, to_rec
 from multidim_threshold.search import SearchResultType, binsearch
 
 
@@ -54,14 +53,23 @@ def bounding_box(r: Rec, oracle):
     return to_rec(intervals=intervals)
 
 
-def refine(rec: Rec, diagsearch):
-    if rec.bot == rec.top:
-        return [rec]
+def _midpoint(i):
+    mid = i.bot + (i.top - i.bot)/2
+    return Interval(mid, mid)
 
-    result_type, rec2 = diagsearch(rec)
-    if result_type != SearchResultType.NON_TRIVIAL:
-        raise RuntimeError(f"Threshold function does not intersect {rec}.")
-    return list(rec.subdivide(rec2))
+
+def refine(rec: Rec, diagsearch):
+    if rec.is_point:
+        return [rec]
+    elif rec.degenerate:
+        drop_fb = False
+        rec2 = to_rec(_midpoint(i) for i in rec.intervals)
+    else:
+        drop_fb = True
+        result_type, rec2 = diagsearch(rec)
+        if result_type != SearchResultType.NON_TRIVIAL:
+            raise RuntimeError(f"Threshold function does not intersect {rec}.")
+    return list(rec.subdivide(rec2, drop_fb=drop_fb))
 
 
 def _refiner(oracle):
@@ -96,7 +104,7 @@ def volume_guided_refinement(rec_set, oracle):
     return guided_refinement(rec_set, oracle, lambda r: -r.volume)
 
 
-def _hausdorff_approxes(r1: Rec, r2: Rec, f1, f2, *, metric):
+def _hausdorff_approxes(r1: Rec, r2: Rec, f1, f2, *, metric=hausdorff_bounds):
     recs1, recs2 = {bounding_box(r1, f1)}, {bounding_box(r2, f2)}
     refiner1, refiner2 = _refiner(f1), _refiner(f2)
     next(refiner1), next(refiner2)
@@ -104,13 +112,10 @@ def _hausdorff_approxes(r1: Rec, r2: Rec, f1, f2, *, metric):
         d, (recs1, recs2) = metric(recs1, recs2)
         recs1 = set.union(*(set(refiner1.send(r)) for r in recs1))
         recs2 = set.union(*(set(refiner2.send(r)) for r in recs2))
+
         yield d, (recs1, recs2)
 
 
-def hausdorff_bounds(r1: Rec, r2: Rec, f1, f2):
-    r1, r2 = bounding_box(r1, f1), bounding_box(r2, f2)
-    refiner_lower = _hausdorff_approxes(
-        r1, r2, f1, f2, metric=hausdorff_lowerbound)
-    refiner_upper = _hausdorff_approxes(
-        r1, r2, f1, f2, metric=hausdorff_upperbound)
-    yield from zip(refiner_lower, refiner_upper)
+def oracle_hausdorff_bounds(r: Rec, f1, f2):
+    r1, r2 = bounding_box(r, f1), bounding_box(r, f2)
+    yield from _hausdorff_approxes(r1, r2, f1, f2)

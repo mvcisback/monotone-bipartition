@@ -155,8 +155,7 @@ def test_staircase_refinement(xys):
     event(f"len {len(rec_set)}")
     event(f"volume {max(r.volume for r in rec_set)}")
     if len(rec_set) > 1:
-        assert all(
-            any(r2 in r1 for r2 in rec_set) for r1 in prev)
+        assert all(any(r2 in r1 for r2 in rec_set) for r1 in prev)
 
         # Check that the recset is not disjoint
         # TODO

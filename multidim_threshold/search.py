@@ -22,7 +22,7 @@ def diagonal_convex_comb(r: Rec):
     return lambda t: bot + t * diag
 
 
-def binsearch(r: Rec, oracle, eps=1e-3) -> SearchResult:
+def binsearch(r: Rec, oracle, eps=1e-4) -> SearchResult:
     """Binary search over the diagonal of the rectangle.
 
     Returns the lower and upper approximation on the diagonal.

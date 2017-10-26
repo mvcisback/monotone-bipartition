@@ -18,7 +18,6 @@ class Interval(NamedTuple):
             return self.bot <= x.bot and x.top <= self.top
         return self.bot <= x <= self.top
 
-
     def __and__(self, i2):
         bot, top = max(i2.bot, self.bot), min(i2.top, self.top)
         if bot > top:
@@ -71,7 +70,11 @@ class Rec(NamedTuple):
 
     @property
     def degenerate(r):
-        return any(x == 0 for x in r.diag)
+        return min(x for x in r.diag) < 1e-3
+
+    @property
+    def is_point(r):
+        return max(x for x in r.diag) < 1e-3
 
     def forward_cone(self, p):
         """Computes the forward cone from point p."""

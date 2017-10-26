@@ -43,10 +43,10 @@ class Interval(namedtuple("Interval", ['start', 'end'])):
 @example([mdt.to_rec(((0, 0.4), (0, 0.4)))],
          [mdt.to_rec(((0.5, 1), (0.5, 1)))])
 def test_directed_hausdorff(rec_set1, rec_set2):
-    d12, req12 = mdth.directed_hausdorff(
-        rec_set1, rec_set2, metric=mdth.dist_rec_lowerbound)
-    _d12, _req12 = mdth.directed_hausdorff(
-        *req12, metric=mdth.dist_rec_lowerbound)
+    d12, req12 = mdth.directed_hausdorff(rec_set1, rec_set2)
+    assert len(req12[0]) > 0
+    assert len(req12[1]) > 0
+    _d12, _req12 = mdth.directed_hausdorff(*req12)
     assert req12 == _req12
     assert len(req12[0]) <= len(rec_set1)
     assert len(req12[1]) <= len(rec_set2)
@@ -56,17 +56,14 @@ def test_directed_hausdorff(rec_set1, rec_set2):
 
 @given(st.lists(GEN_RECS, min_size=1), st.lists(GEN_RECS, min_size=1))
 def test_hausdorff(rec_set1, rec_set2):
-    d12, req12 = mdth.hausdorff(
-        rec_set1, rec_set2, metric=mdth.dist_rec_lowerbound)
-    d21, req21 = mdth.hausdorff(
-        rec_set2, rec_set1, metric=mdth.dist_rec_lowerbound)
+    d12, req12 = mdth.hausdorff_bounds(rec_set1, rec_set2)
+    d21, req21 = mdth.hausdorff_bounds(rec_set2, rec_set1)
     assert req12 == req21[::-1]
     assert d12 == d21
     assert len(req12[0]) <= len(rec_set1)
     assert len(req12[1]) <= len(rec_set2)
 
-    _d12, _req12 = mdth.hausdorff(
-        req12[0], req12[1], metric=mdth.dist_rec_lowerbound)
+    _d12, _req12 = mdth.hausdorff_bounds(req12[0], req12[1])
     assert d12 == _d12
     assert _req12 == req12
     event(f"d={d12}")
@@ -132,46 +129,44 @@ def test_staircase_hausdorff(k, xys1, xys2):
     assert d2 <= d1 or pytest.approx(d1) == d2
 
 
-"""
-TODO
 @given(GEN_STAIRCASES, GEN_STAIRCASES)
 def test_staircase_hausdorff_bounds(xys1, xys2):
     (xs1, ys1), (xs2, ys2) = xys1, xys2
 
-    f1 = [Point2d(x, y) for x,y in zip(*(xs1, ys1))]
-    f2 = [Point2d(x, y) for x,y in zip(*(xs2, ys2))]
+    f1 = [Point2d(x, y) for x, y in zip(*(xs1, ys1))]
+    f2 = [Point2d(x, y) for x, y in zip(*(xs2, ys2))]
 
     o1 = staircase_oracle(xs1, ys1)
     o2 = staircase_oracle(xs2, ys2)
     unit_rec = mdt.to_rec([(0, 1), (0, 1)])
-    d = staircase_hausdorff(f1, f2)
-    d_bounds = mdt.hausdorff_bounds(unit_rec, unit_rec, o1, o2)
-    for i, ((d_l, _), (d_u, _)) in enumerate(d_bounds):
-        assert d_l <= d <= d_u
-        if d_u - d_l < 1e-2:
+    d_true = staircase_hausdorff(f1, f2)
+    d_bounds = mdt.oracle_hausdorff_bounds(unit_rec, o1, o2)
+    for i, (d, _) in enumerate(d_bounds):
+        # TODO: Tighten why is this slack required.
+        assert d.bot < d_true + 1e-1
+        assert d_true < d.top + 1e-1
+        assert d.bot <= d.top
+        if d.radius < 1e-1:
             break
-        elif i > 2:
-            assert False
-    event(f"i={i}")
 
+    event(f"i={i}")
     event(f'xys1 == xys2: {xys1 == xys2}')
     event(f'xys1 == xys2: {xys1 == xys2}')
-"""
 
 
 @given(GEN_STAIRCASES)
-def test_staircase_hausdorff_bounds(xys):
+def test_staircase_hausdorff_bounds_diag(xys):
     (xs, ys) = xys
 
     f = [Point2d(x, y) for x, y in zip(*(xs, ys))]
     oracle = staircase_oracle(xs, ys)
     unit_rec = mdt.to_rec([(0, 1), (0, 1)])
-    d = staircase_hausdorff(f, f)
-    d_bounds = mdt.hausdorff_bounds(unit_rec, unit_rec, oracle, oracle)
-    for i, ((d_l, _), (d_u, _)) in enumerate(d_bounds):
-        assert d_l <= d <= d_u
-        if d_u - d_l < 1e-2:
+    d_true = staircase_hausdorff(f, f)
+    d_bounds = mdt.oracle_hausdorff_bounds(unit_rec, oracle, oracle)
+    for i, (d, _) in enumerate(d_bounds):
+        assert d.bot <= d_true <= d.top
+        if d.radius < 1e-2:
             break
-        elif i > 4:
-            # TODO assert False
+        elif i > 7:
+            assert False
             break
