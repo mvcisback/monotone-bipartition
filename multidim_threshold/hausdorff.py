@@ -2,6 +2,7 @@ from collections import defaultdict
 from itertools import product
 
 from lenses import bind
+
 from multidim_threshold.rectangles import Interval
 
 
