@@ -1,7 +1,9 @@
 import operator as op
+from itertools import product
 from functools import reduce
 from typing import Iterable, NamedTuple
 
+import numpy as np
 from lenses import lens
 
 bot_lens = lens.intervals.Each().bot
@@ -28,6 +30,9 @@ class Interval(NamedTuple):
         bot, top = min(i2.bot, self.bot), max(i2.top, self.top)
         return Interval(bot, top)
 
+    def discretize(self, k=3):
+        return np.linspace(self.bot, self.top, k)
+
     @property
     def radius(self):
         return self.top - self.bot
@@ -42,11 +47,13 @@ def _select_rec(intervals, j, lo, hi):
     chosen_rec = tuple(
         include_error(i, k, l, h)
         for k, (l, h, i) in enumerate(zip(lo, hi, intervals)))
-    return to_rec(chosen_rec)
+    error = max(h - l for h, l in zip(hi, lo))
+    return to_rec(chosen_rec, error=error)
 
 
 class Rec(NamedTuple):
     intervals: Iterable[Interval]
+    error: float
 
     @property
     def bot(self):
@@ -104,7 +111,10 @@ class Rec(NamedTuple):
     def __contains__(self, r):
         return all(i2 in i1 for i1, i2 in zip(self.intervals, r.intervals))
 
+    def discretize(self, eps=1e-4):
+        return list(product(*(i.discretize(eps) for i in self.intervals)))
 
-def to_rec(intervals):
+
+def to_rec(intervals, error=0):
     intervals = tuple(Interval(*i) for i in intervals)
-    return Rec(intervals)
+    return Rec(intervals, error)

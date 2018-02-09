@@ -8,7 +8,7 @@ from operator import itemgetter as ig
 import funcy as fn
 import numpy as np
 
-from multidim_threshold.hausdorff import hausdorff_bounds
+from multidim_threshold.hausdorff import hausdorff_bounds, pointwise_hausdorff
 from multidim_threshold.rectangles import Interval, Rec, to_rec
 from multidim_threshold.search import SearchResultType, binsearch
 
@@ -54,7 +54,7 @@ def bounding_box(r: Rec, oracle):
 
 
 def _midpoint(i):
-    mid = i.bot + (i.top - i.bot)/2
+    mid = i.bot + (i.top - i.bot) / 2
     return Interval(mid, mid)
 
 
@@ -63,7 +63,7 @@ def refine(rec: Rec, diagsearch):
         return [rec]
     elif rec.degenerate:
         drop_fb = False
-        rec2 = to_rec(_midpoint(i) for i in rec.intervals)
+        rec2 = to_rec((_midpoint(i) for i in rec.intervals), error=0)
     else:
         drop_fb = True
         result_type, rec2 = diagsearch(rec)
@@ -104,6 +104,14 @@ def volume_guided_refinement(rec_set, oracle):
     return guided_refinement(rec_set, oracle, lambda r: -r.volume)
 
 
+def shortest_edge(r):
+    return min(r.diag)
+
+
+def edge_length_guided_refinement(rec_set, oracle):
+    return guided_refinement(rec_set, oracle, lambda r: -shortest_edge(r))
+
+
 def _hausdorff_approxes(r1: Rec, r2: Rec, f1, f2, *, metric=hausdorff_bounds):
     recs1, recs2 = {bounding_box(r1, f1)}, {bounding_box(r2, f2)}
     refiner1, refiner2 = _refiner(f1), _refiner(f2)
@@ -112,6 +120,13 @@ def _hausdorff_approxes(r1: Rec, r2: Rec, f1, f2, *, metric=hausdorff_bounds):
         d, (recs1, recs2) = metric(recs1, recs2)
         recs1 = set.union(*(set(refiner1.send(r)) for r in recs1))
         recs2 = set.union(*(set(refiner2.send(r)) for r in recs2))
+        # TODO: for each rectangle, also add it's bot and top
+        recs1 |= {to_rec(zip(r.bot, r.bot))
+                  for r in recs1} | {to_rec(zip(r.top, r.top))
+                                     for r in recs1}
+        recs2 |= {to_rec(zip(r.bot, r.bot))
+                  for r in recs2} | {to_rec(zip(r.top, r.top))
+                                     for r in recs2}
 
         yield d, (recs1, recs2)
 
@@ -119,3 +134,24 @@ def _hausdorff_approxes(r1: Rec, r2: Rec, f1, f2, *, metric=hausdorff_bounds):
 def oracle_hausdorff_bounds(r: Rec, f1, f2):
     r1, r2 = bounding_box(r, f1), bounding_box(r, f2)
     yield from _hausdorff_approxes(r1, r2, f1, f2)
+
+
+def oracle_hausdorff_bounds2(recset1, recset2, f1, f2, eps=1e-1, k=3):
+    refiner1 = edge_length_guided_refinement(recset1, f1)
+    refiner2 = edge_length_guided_refinement(recset2, f2)
+
+    while True:
+        xs = list(fn.mapcat(lambda r: r.discretize(k), recset1))
+        ys = list(fn.mapcat(lambda r: r.discretize(k), recset2))
+
+        error1 = max(r.error + shortest_edge(r) for r in recset1)
+        error2 = max(r.error + shortest_edge(r) for r in recset2)
+        error = error1 + error2
+        d12 = pointwise_hausdorff(xs, ys)
+
+        yield Interval(max(d12 - error, 0), d12 + error)
+
+        recset1 = fn.first(filter(lambda xs: -xs[0][0] <= eps, refiner1))
+        recset2 = fn.first(filter(lambda xs: -xs[0][0] <= eps, refiner2))
+        recset1, recset2 = [r for _, r in recset1], [r for _, r in recset2]
+        eps /= 2

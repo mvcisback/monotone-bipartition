@@ -1,6 +1,7 @@
 from collections import defaultdict
 from itertools import product
 
+import numpy as np
 from lenses import bind
 
 from multidim_threshold.rectangles import Interval
@@ -62,3 +63,16 @@ def hausdorff_bounds(rec_set1, rec_set2):
     d12, req12 = directed_hausdorff(rec_set1, rec_set2)
     d21, req21 = directed_hausdorff(rec_set2, rec_set1)
     return max(d12, d21), (req12[0] | req21[1], req12[1] | req21[0])
+
+
+def pointwise_hausdorff(xs, ys):
+    def d(a, b):
+        return np.linalg.norm(np.array(a) - np.array(b), ord=float('inf'))
+
+    dXY = pointwise_directed_hausdorff(xs, ys, d=d)
+    dYX = pointwise_directed_hausdorff(ys, xs, d=d)
+    return max(dXY, dYX)
+
+
+def pointwise_directed_hausdorff(xs, ys, d):
+    return max(min(d(x, y) for y in ys) for x in xs)

@@ -6,6 +6,8 @@ import numpy as np
 
 from multidim_threshold.rectangles import Rec, to_rec
 
+EPS = 1e-4
+
 
 class SearchResultType(Enum):
     TRIVIALLY_FALSE = auto()
@@ -22,7 +24,7 @@ def diagonal_convex_comb(r: Rec):
     return lambda t: bot + t * diag
 
 
-def binsearch(r: Rec, oracle, eps=1e-4) -> SearchResult:
+def binsearch(r: Rec, oracle, eps=EPS) -> SearchResult:
     """Binary search over the diagonal of the rectangle.
 
     Returns the lower and upper approximation on the diagonal.
