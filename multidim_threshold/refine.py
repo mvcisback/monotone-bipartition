@@ -58,7 +58,7 @@ def _midpoint(i):
     return Interval(mid, mid)
 
 
-def refine(rec: Rec, diagsearch):
+def refine(rec: Rec, diagsearch, pedantic=False):
     if rec.is_point:
         return [rec]
     elif rec.degenerate:
@@ -67,8 +67,13 @@ def refine(rec: Rec, diagsearch):
     else:
         drop_fb = True
         result_type, rec2 = diagsearch(rec)
-        if result_type != SearchResultType.NON_TRIVIAL:
+        if pedantic and result_type != SearchResultType.NON_TRIVIAL:
             raise RuntimeError(f"Threshold function does not intersect {rec}.")
+        elif result_type == SearchResultType.TRIVIALLY_FALSE:
+            return [to_rec(zip(rec.bot, rec.bot))]
+        elif result_type == SearchResultType.TRIVIALLY_TRUE:
+            return [to_rec(zip(rec.top, rec.top))]
+
     return list(rec.subdivide(rec2, drop_fb=drop_fb))
 
 
