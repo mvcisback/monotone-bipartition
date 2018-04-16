@@ -23,8 +23,6 @@ def main():
         df['speed'] = df.Y
         df['time'] = df.index
 
-    data = pd.concat(dfs).reindex()
-
     @fn.autocurry
     def phi(x, params):
         h, tau = params
