@@ -80,9 +80,6 @@ def pointwise_directed_hausdorff(xs, ys, d):
 
 
 def discretized_and_pointwise_hausdorff(recset1, recset2, k=3):
-    """
-    TODO: Put on GPU
-    """
     xs = list(fn.mapcat(lambda r: r.discretize(k), recset1))
     ys = list(fn.mapcat(lambda r: r.discretize(k), recset2))
 
@@ -92,3 +89,10 @@ def discretized_and_pointwise_hausdorff(recset1, recset2, k=3):
     d12 = pointwise_hausdorff(xs, ys)
 
     return Interval(max(d12 - error, 0), d12 + error)
+
+
+def gpu_discretized_and_pointwise_hausdorff(recset1, recset2, k=3):
+    """
+    TODO: put on GPU.
+    """
+    return discretized_and_pointwise_hausdorff(recset1, recset2, k)

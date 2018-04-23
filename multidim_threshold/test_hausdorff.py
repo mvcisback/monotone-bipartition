@@ -10,7 +10,7 @@ from hypothesis import event, example, given, settings
 import multidim_threshold as mdt
 import multidim_threshold.hausdorff as mdth
 from multidim_threshold.test_refine import (GEN_RECS, GEN_STAIRCASES,
-                                            staircase_oracle)
+                                            staircase_oracle, to_rec)
 
 
 @given(GEN_RECS)
@@ -170,8 +170,8 @@ def test_staircase_hausdorff_bounds_diag2(xys):
     oracle = staircase_oracle(xs, ys)
     unit_rec = mdt.to_rec([(0, 1), (0, 1)])
     d_true = staircase_hausdorff(f, f)
-    d_bounds = mdt.oracle_hausdorff_bounds2(
-        [unit_rec], [unit_rec], oracle, oracle)
+    d_bounds = mdt.oracle_hausdorff_bounds2([unit_rec], [unit_rec], oracle,
+                                            oracle)
     for i, d in enumerate(d_bounds):
         assert d.bot <= d_true <= d.top
         if d.radius < 1e-2:
@@ -193,8 +193,7 @@ def test_staircase_hausdorff_bounds2(xys1, xys2):
     o2 = staircase_oracle(xs2, ys2)
     unit_rec = mdt.to_rec([(0, 1), (0, 1)])
     d_true = staircase_hausdorff(f1, f2)
-    d_bounds = mdt.oracle_hausdorff_bounds2(
-        [unit_rec], [unit_rec], o1, o2)
+    d_bounds = mdt.oracle_hausdorff_bounds2([unit_rec], [unit_rec], o1, o2)
     for i, d in enumerate(d_bounds):
         # TODO: Tighten why is this slack required.
         assert d.bot < d_true + 1e-1
@@ -202,3 +201,27 @@ def test_staircase_hausdorff_bounds2(xys1, xys2):
         assert d.bot <= d.top
         if d.radius < 1e-1:
             break
+
+
+GEN_RECS2d = st.builds(to_rec,
+                       st.tuples(
+                           st.tuples(
+                               st.floats(min_value=0, max_value=1),
+                               st.floats(min_value=0, max_value=1)), ))
+
+
+@given(st.lists(GEN_RECS2d, min_size=1), st.lists(GEN_RECS2d, min_size=1))
+def test_gpu_hausdorff(rec_set1, rec_set2):
+
+    # Drop the errors from the rectangles
+    d1 = mdth.discretized_and_pointwise_hausdorff(rec_set1, rec_set2)
+    d2 = mdth.gpu_discretized_and_pointwise_hausdorff(rec_set1, rec_set2)
+
+    # Make sure these intervals intersect.
+    assert d1 & d2 is not None
+
+    # For debugging, you can record d1 and d2.
+    # event(f"d1={d1}, d2={d2}")
+
+    # Make sure these intervals are more or less the same size.
+    assert pytest.approx(d1.radius) == d2.radius
