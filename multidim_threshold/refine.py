@@ -8,7 +8,8 @@ from operator import itemgetter as ig
 import funcy as fn
 import numpy as np
 
-from multidim_threshold.hausdorff import hausdorff_bounds, pointwise_hausdorff
+from multidim_threshold.hausdorff import hausdorff_bounds
+from multidim_threshold.hausdorff import discretized_and_pointwise_hausdorff
 from multidim_threshold.rectangles import Interval, Rec, to_rec
 from multidim_threshold.search import SearchResultType, binsearch
 
@@ -109,12 +110,8 @@ def volume_guided_refinement(rec_set, oracle):
     return guided_refinement(rec_set, oracle, lambda r: -r.volume)
 
 
-def shortest_edge(r):
-    return min(r.diag)
-
-
 def edge_length_guided_refinement(rec_set, oracle):
-    return guided_refinement(rec_set, oracle, lambda r: -shortest_edge(r))
+    return guided_refinement(rec_set, oracle, lambda r: -r.shortest_edge)
 
 
 def _hausdorff_approxes(r1: Rec, r2: Rec, f1, f2, *, metric=hausdorff_bounds):
@@ -146,15 +143,7 @@ def oracle_hausdorff_bounds2(recset1, recset2, f1, f2, eps=1e-1, k=3):
     refiner2 = edge_length_guided_refinement(recset2, f2)
 
     while True:
-        xs = list(fn.mapcat(lambda r: r.discretize(k), recset1))
-        ys = list(fn.mapcat(lambda r: r.discretize(k), recset2))
-
-        error1 = max(r.error + shortest_edge(r) for r in recset1)
-        error2 = max(r.error + shortest_edge(r) for r in recset2)
-        error = error1 + error2
-        d12 = pointwise_hausdorff(xs, ys)
-
-        yield Interval(max(d12 - error, 0), d12 + error)
+        yield discretized_and_pointwise_hausdorff(recset1, recset2, k)
 
         recset1 = fn.first(filter(lambda xs: -xs[0][0] <= eps, refiner1))
         recset2 = fn.first(filter(lambda xs: -xs[0][0] <= eps, refiner2))

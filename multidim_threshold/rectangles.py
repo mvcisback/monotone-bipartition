@@ -114,6 +114,10 @@ class Rec(NamedTuple):
     def discretize(self, eps=1e-4):
         return list(product(*(i.discretize(eps) for i in self.intervals)))
 
+    @property
+    def shortest_edge(self):
+        return min(self.diag)
+
 
 def to_rec(intervals, error=0):
     intervals = tuple(Interval(*i) for i in intervals)

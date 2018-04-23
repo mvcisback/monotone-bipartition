@@ -2,6 +2,7 @@ from collections import defaultdict
 from itertools import product
 
 import numpy as np
+import funcy as fn
 from lenses import bind
 
 from multidim_threshold.rectangles import Interval
@@ -76,3 +77,18 @@ def pointwise_hausdorff(xs, ys):
 
 def pointwise_directed_hausdorff(xs, ys, d):
     return max(min(d(x, y) for y in ys) for x in xs)
+
+
+def discretized_and_pointwise_hausdorff(recset1, recset2, k=3):
+    """
+    TODO: Put on GPU
+    """
+    xs = list(fn.mapcat(lambda r: r.discretize(k), recset1))
+    ys = list(fn.mapcat(lambda r: r.discretize(k), recset2))
+
+    error1 = max(r.error + r.shortest_edge for r in recset1)
+    error2 = max(r.error + r.shortest_edge for r in recset2)
+    error = error1 + error2
+    d12 = pointwise_hausdorff(xs, ys)
+
+    return Interval(max(d12 - error, 0), d12 + error)
