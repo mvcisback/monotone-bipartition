@@ -212,8 +212,6 @@ GEN_RECS2d = st.builds(to_rec,
 
 @given(st.lists(GEN_RECS2d, min_size=1), st.lists(GEN_RECS2d, min_size=1))
 def test_gpu_hausdorff(rec_set1, rec_set2):
-
-    # Drop the errors from the rectangles
     d1 = mdth.discretized_and_pointwise_hausdorff(rec_set1, rec_set2)
     d2 = mdth.gpu_discretized_and_pointwise_hausdorff(rec_set1, rec_set2)
 
