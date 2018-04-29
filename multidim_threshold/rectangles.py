@@ -174,9 +174,17 @@ class RecTree(NamedTuple):
     children: Tuple['RecTree']
     data: Rec
 
-    def label(self, point):
+    def label(self, point, approx=True):
         if self.children is None:
-            return self.data.label(point)
+            lbl = self.data.label(point)
+            if (not approx) or (lbl != CMP.Inside):
+                return lbl
+
+            bot, top = map(np.array, (self.data.bot, self.data.top))
+            if (np.array(point) > (top + bot)/2).all():
+                return CMP.ForwardCone
+            else:
+                return CMP.BackwardCone
 
         # See if any of the children can for sure label the point.
         for child in self.children:
@@ -184,11 +192,11 @@ class RecTree(NamedTuple):
             if lbl in (CMP.ForwardCone, CMP.BackwardCone):
                 return lbl
             elif lbl == CMP.Inside:
-                return child.label(point)
+                return child.label(point, approx)
 
         # BFS for label.
         for child in self.children:
-            lbl = child.label(point)
+            lbl = child.label(point, approx)
             if lbl != CMP.Incomparable:
                 return lbl
 

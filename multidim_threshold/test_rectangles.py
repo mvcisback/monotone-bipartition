@@ -91,10 +91,11 @@ def test_rec_oracle(k, point):
     elif y <= 1 - x - 1 / n:
         assert lbl == CMP.BackwardCone
     else:
-        if lbl in (CMP.ForwardCone, CMP.BackwardCone):
+        lbl2 = tree.label(point, approx=False)
+        if lbl2 in (CMP.ForwardCone, CMP.BackwardCone):
             assert any(lbl in (CMP.ForwardCone, CMP.BackwardCone)
                        for lbl in labels)
-        elif lbl == CMP.Inside:
+        elif lbl2 == CMP.Inside:
             assert any(lbl == CMP.Inside for lbl in labels)
         else:
             assert all(lbl == CMP.Incomparable for lbl in labels)
