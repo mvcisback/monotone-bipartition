@@ -8,10 +8,9 @@ from operator import itemgetter as ig
 import funcy as fn
 import numpy as np
 
-from multidim_threshold.hausdorff import hausdorff_bounds
-from multidim_threshold.hausdorff import discretized_and_pointwise_hausdorff
-from multidim_threshold.rectangles import Interval, Rec, to_rec
-from multidim_threshold.search import SearchResultType, binsearch
+from multidim_threshold import hausdorff as mdth
+from multidim_threshold import rectangles as mdtr  # Interval, Rec, to_rec
+from multidim_threshold import search as mdts  # SearchResultType, binsearch
 
 
 def box_edges(r):
@@ -33,14 +32,14 @@ def box_edges(r):
 
     for s_mask, t_mask in fn.mapcat(_corner_edge_masks, range(n)):
         intervals = tuple(zip(bot + s_mask * diag, bot + t_mask * diag))
-        yield to_rec(intervals=intervals)
+        yield mdtr.to_rec(intervals=intervals)
 
 
-def bounding_box(r: Rec, oracle):
+def bounding_box(r: mdtr.Rec, oracle):
     """Compute Bounding box. TODO: clean up"""
     recs = list(box_edges(r))
 
-    tops = [(binsearch(r2, oracle)[1].top, tuple(
+    tops = [(mdts.binsearch(r2, oracle)[1].top, tuple(
         (np.array(r2.top) - np.array(r2.bot) != 0))) for r2 in recs]
     tops = fn.group_by(ig(1), tops)
 
@@ -51,36 +50,36 @@ def bounding_box(r: Rec, oracle):
 
     top = np.array(list(_top_components()))
     intervals = tuple(zip(r.bot, top))
-    return to_rec(intervals=intervals)
+    return mdtr.to_rec(intervals=intervals)
 
 
 def _midpoint(i):
     mid = i.bot + (i.top - i.bot) / 2
-    return Interval(mid, mid)
+    return mdtr.Interval(mid, mid)
 
 
-def refine(rec: Rec, diagsearch, pedantic=False):
+def refine(rec: mdtr.Rec, diagsearch, pedantic=False):
     if rec.is_point:
         return [rec]
     elif rec.degenerate:
         drop_fb = False
-        rec2 = to_rec((_midpoint(i) for i in rec.intervals), error=0)
+        rec2 = mdtr.to_rec((_midpoint(i) for i in rec.intervals), error=0)
     else:
         drop_fb = True
         result_type, rec2 = diagsearch(rec)
-        if pedantic and result_type != SearchResultType.NON_TRIVIAL:
+        if pedantic and result_type != mdts.SearchResultType.NON_TRIVIAL:
             raise RuntimeError(f"Threshold function does not intersect {rec}.")
-        elif result_type == SearchResultType.TRIVIALLY_FALSE:
-            return [to_rec(zip(rec.bot, rec.bot))]
-        elif result_type == SearchResultType.TRIVIALLY_TRUE:
-            return [to_rec(zip(rec.top, rec.top))]
+        elif result_type == mdts.SearchResultType.TRIVIALLY_FALSE:
+            return [mdtr.to_rec(zip(rec.bot, rec.bot))]
+        elif result_type == mdts.SearchResultType.TRIVIALLY_TRUE:
+            return [mdtr.to_rec(zip(rec.top, rec.top))]
 
     return list(rec.subdivide(rec2, drop_fb=drop_fb))
 
 
 def _refiner(oracle):
     """Generator for iteratively approximating the oracle's threshold."""
-    diagsearch = fn.partial(binsearch, oracle=oracle)
+    diagsearch = fn.partial(mdts.binsearch, oracle=oracle)
     rec = yield
     while True:
         rec = yield refine(rec, diagsearch)
@@ -114,7 +113,12 @@ def edge_length_guided_refinement(rec_set, oracle):
     return guided_refinement(rec_set, oracle, lambda r: -r.shortest_edge)
 
 
-def _hausdorff_approxes(r1: Rec, r2: Rec, f1, f2, *, metric=hausdorff_bounds):
+def _hausdorff_approxes(r1: mdtr.Rec,
+                        r2: mdtr.Rec,
+                        f1,
+                        f2,
+                        *,
+                        metric=mdth.hausdorff_bounds):
     recs1, recs2 = {bounding_box(r1, f1)}, {bounding_box(r2, f2)}
     refiner1, refiner2 = _refiner(f1), _refiner(f2)
     next(refiner1), next(refiner2)
@@ -123,17 +127,19 @@ def _hausdorff_approxes(r1: Rec, r2: Rec, f1, f2, *, metric=hausdorff_bounds):
         recs1 = set.union(*(set(refiner1.send(r)) for r in recs1))
         recs2 = set.union(*(set(refiner2.send(r)) for r in recs2))
         # TODO: for each rectangle, also add it's bot and top
-        recs1 |= {to_rec(zip(r.bot, r.bot))
-                  for r in recs1} | {to_rec(zip(r.top, r.top))
-                                     for r in recs1}
-        recs2 |= {to_rec(zip(r.bot, r.bot))
-                  for r in recs2} | {to_rec(zip(r.top, r.top))
-                                     for r in recs2}
+        recs1 |= {mdtr.to_rec(zip(r.bot, r.bot))
+                  for r in recs1
+                  } | {mdtr.to_rec(zip(r.top, r.top))
+                       for r in recs1}
+        recs2 |= {mdtr.to_rec(zip(r.bot, r.bot))
+                  for r in recs2
+                  } | {mdtr.to_rec(zip(r.top, r.top))
+                       for r in recs2}
 
         yield d, (recs1, recs2)
 
 
-def oracle_hausdorff_bounds(r: Rec, f1, f2):
+def oracle_hausdorff_bounds(r: mdtr.Rec, f1, f2):
     r1, r2 = bounding_box(r, f1), bounding_box(r, f2)
     yield from _hausdorff_approxes(r1, r2, f1, f2)
 
@@ -143,7 +149,7 @@ def oracle_hausdorff_bounds2(recset1, recset2, f1, f2, eps=1e-1, k=3):
     refiner2 = edge_length_guided_refinement(recset2, f2)
 
     while True:
-        yield discretized_and_pointwise_hausdorff(recset1, recset2, k)
+        yield mdth.discretized_and_pointwise_hausdorff(recset1, recset2, k)
 
         recset1 = fn.first(filter(lambda xs: -xs[0][0] <= eps, refiner1))
         recset2 = fn.first(filter(lambda xs: -xs[0][0] <= eps, refiner2))

@@ -4,7 +4,7 @@ from typing import Optional, Tuple
 import funcy as fn
 import numpy as np
 
-from multidim_threshold.rectangles import Rec, to_rec
+from multidim_threshold import rectangles as mdtr # Rec, to_rec
 
 EPS = 1e-4
 
@@ -15,16 +15,16 @@ class SearchResultType(Enum):
     NON_TRIVIAL = auto()
 
 
-SearchResult = Tuple[SearchResultType, Optional[Rec]]
+SearchResult = Tuple[SearchResultType, Optional[mdtr.Rec]]
 
 
-def diagonal_convex_comb(r: Rec):
+def diagonal_convex_comb(r: mdtr.Rec):
     bot, top = np.array(r.bot), np.array(r.top)
     diag = top - bot
     return lambda t: bot + t * diag
 
 
-def binsearch(r: Rec, oracle, eps=EPS) -> SearchResult:
+def binsearch(r: mdtr.Rec, oracle, eps=EPS) -> SearchResult:
     """Binary search over the diagonal of the rectangle.
 
     Returns the lower and upper approximation on the diagonal.
@@ -44,4 +44,4 @@ def binsearch(r: Rec, oracle, eps=EPS) -> SearchResult:
         while (f(hi) - f(lo) > eps).any():
             mid = lo + (hi - lo) / 2
             lo, hi = (lo, mid) if feval(mid) else (mid, hi)
-    return result_type, to_rec(zip(f(lo), f(hi)))
+    return result_type, mdtr.to_rec(zip(f(lo), f(hi)))
