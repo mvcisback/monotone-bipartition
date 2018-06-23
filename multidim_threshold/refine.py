@@ -35,7 +35,7 @@ def box_edges(r):
         yield mdtr.to_rec(intervals=intervals)
 
 
-def bounding_box(r: mdtr.Rec, oracle):
+def bounding_box(r, oracle):
     """Compute Bounding box. TODO: clean up"""
     recs = list(box_edges(r))
 
@@ -58,7 +58,7 @@ def _midpoint(i):
     return mdtr.Interval(mid, mid)
 
 
-def refine(rec: mdtr.Rec, diagsearch, pedantic=False):
+def refine(rec, diagsearch, pedantic=False):
     if rec.is_point:
         return [rec]
     elif rec.degenerate:
@@ -77,81 +77,50 @@ def refine(rec: mdtr.Rec, diagsearch, pedantic=False):
     return list(rec.subdivide(rec2, drop_fb=drop_fb))
 
 
-def _refiner(oracle):
+def cost_guided_refinement(n_oracle_or_tree, cost):
     """Generator for iteratively approximating the oracle's threshold."""
-    diagsearch = fn.partial(mdts.binsearch, oracle=oracle)
-    rec = yield
-    while True:
-        rec = yield refine(rec, diagsearch)
+    if isinstance(n_oracle_or_tree, mdtr.RecTree):
+        tree = n_oracle_or_tree
+    else:
+        tree = mdtr.RecTree(*n_oracle_or_tree)
 
-
-def guided_refinement(rec_set, oracle, cost, prune=lambda *_: False):
-    """Generator for iteratively approximating the oracle's threshold."""
-    # TODO: automatically apply bounding box computation. Yield that first.
-    refiner = _refiner(oracle)
-    next(refiner)
-    queue = [(cost(rec), bounding_box(rec, oracle)) for rec in rec_set]
+    queue = [(cost(t), t) for t in tree.children]
     heapify(queue)
-
-    # TODO: when bounding box is implemented initial error is given by that
     while queue:
         # TODO: when bounding
-        yield queue
-        _, rec = hpop(queue)
-        subdivided = refiner.send(rec)
-        for r in subdivided:
-            if prune(r):
-                continue
-            hpush(queue, (cost(r), r))
+        yield [(c, t.data) for c, t in queue], tree
+        _, tree = hpop(queue)
+        
+        for t in tree.children:
+            hpush(queue, (cost(t), t))
 
 
-def volume_guided_refinement(rec_set, oracle):
-    return guided_refinement(rec_set, oracle, lambda r: -r.volume)
+def volume_guided_refinement(n_oracle_or_tree):
+    return cost_guided_refinement(
+        n_oracle_or_tree,
+        cost=lambda t: -t.data.volume
+    )
 
 
-def edge_length_guided_refinement(rec_set, oracle):
-    return guided_refinement(rec_set, oracle, lambda r: -r.shortest_edge)
+def edge_length_guided_refinement(n_oracle_or_tree):
+    return cost_guided_refinement(
+        n_oracle_or_tree,
+        cost=lambda t: -t.data.shortest_edge
+    )
 
 
-def _hausdorff_approxes(r1: mdtr.Rec,
-                        r2: mdtr.Rec,
-                        f1,
-                        f2,
-                        *,
-                        metric=mdth.hausdorff_bounds):
-    recs1, recs2 = {bounding_box(r1, f1)}, {bounding_box(r2, f2)}
-    refiner1, refiner2 = _refiner(f1), _refiner(f2)
-    next(refiner1), next(refiner2)
-    while True:
-        d, (recs1, recs2) = metric(recs1, recs2)
-        recs1 = set.union(*(set(refiner1.send(r)) for r in recs1))
-        recs2 = set.union(*(set(refiner2.send(r)) for r in recs2))
-        # TODO: for each rectangle, also add it's bot and top
-        recs1 |= {mdtr.to_rec(zip(r.bot, r.bot))
-                  for r in recs1
-                  } | {mdtr.to_rec(zip(r.top, r.top))
-                       for r in recs1}
-        recs2 |= {mdtr.to_rec(zip(r.bot, r.bot))
-                  for r in recs2
-                  } | {mdtr.to_rec(zip(r.top, r.top))
-                       for r in recs2}
-
-        yield d, (recs1, recs2)
+@fn.curry
+def _extract_recset(eps, refiner):
+    refined, _ = fn.first(
+        filter(lambda xs: -xs[0][0][0] <= eps, refiner))
+    return fn.lpluck(1, refined)
 
 
-def oracle_hausdorff_bounds(r: mdtr.Rec, f1, f2):
-    r1, r2 = bounding_box(r, f1), bounding_box(r, f2)
-    yield from _hausdorff_approxes(r1, r2, f1, f2)
-
-
-def oracle_hausdorff_bounds2(recset1, recset2, f1, f2, eps=1e-1, k=3):
-    refiner1 = edge_length_guided_refinement(recset1, f1)
-    refiner2 = edge_length_guided_refinement(recset2, f2)
+def hausdorff_bounds(n_oracle_or_tree1, n_oracle_or_tree2, eps=1e-1, k=3):
+    refiner1 = edge_length_guided_refinement(n_oracle_or_tree1)
+    refiner2 = edge_length_guided_refinement(n_oracle_or_tree2)
 
     while True:
+        recset1, recset2 = map(_extract_recset(eps), (refiner1, refiner2))
         yield mdth.discretized_and_pointwise_hausdorff(recset1, recset2, k)
-
-        recset1 = fn.first(filter(lambda xs: -xs[0][0] <= eps, refiner1))
-        recset2 = fn.first(filter(lambda xs: -xs[0][0] <= eps, refiner2))
-        recset1, recset2 = [r for _, r in recset1], [r for _, r in recset2]
         eps /= 2

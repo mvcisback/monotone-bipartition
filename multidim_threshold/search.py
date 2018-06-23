@@ -15,16 +15,13 @@ class SearchResultType(Enum):
     NON_TRIVIAL = auto()
 
 
-SearchResult = Tuple[SearchResultType, Optional[mdtr.Rec]]
-
-
-def diagonal_convex_comb(r: mdtr.Rec):
+def diagonal_convex_comb(r):
     bot, top = np.array(r.bot), np.array(r.top)
     diag = top - bot
     return lambda t: bot + t * diag
 
 
-def binsearch(r: mdtr.Rec, oracle, eps=EPS) -> SearchResult:
+def binsearch(r, oracle, eps=EPS):
     """Binary search over the diagonal of the rectangle.
 
     Returns the lower and upper approximation on the diagonal.
