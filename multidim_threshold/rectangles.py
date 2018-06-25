@@ -1,7 +1,7 @@
 import operator as op
 from itertools import product
 from functools import reduce
-from typing import Iterable, NamedTuple, Tuple, Mapping
+from typing import Iterable, NamedTuple
 from enum import Enum
 
 import funcy as fn
@@ -186,7 +186,6 @@ class _RecTree:
 
     def label(self, point, approx=True, max_depth=10):
         if max_depth <= 0:
-            import pdb; pdb.set_trace()
             bot, top = map(np.array, (self.data.bot, self.data.top))
             if (np.array(point) > (top + bot)/2).all():
                 return CMP.ForwardCone

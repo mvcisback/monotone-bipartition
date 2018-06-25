@@ -90,7 +90,7 @@ def cost_guided_refinement(n_oracle_or_tree, cost):
         # TODO: when bounding
         yield [(c, t.data) for c, t in queue], tree
         _, tree = hpop(queue)
-        
+
         for t in tree.children:
             hpush(queue, (cost(t), t))
 

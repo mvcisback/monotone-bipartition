@@ -1,10 +1,9 @@
 from enum import Enum, auto
-from typing import Optional, Tuple
 
 import funcy as fn
 import numpy as np
 
-from multidim_threshold import rectangles as mdtr # Rec, to_rec
+from multidim_threshold import rectangles as mdtr
 
 EPS = 1e-4
 

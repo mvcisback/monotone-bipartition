@@ -7,6 +7,7 @@ import multidim_threshold as mdt
 from multidim_threshold import rectangles
 from multidim_threshold import refine
 
+
 def to_rec(xs):
     bots = [b for b, _ in xs]
     tops = [max(b + d, 1) for b, d in xs]
@@ -144,7 +145,7 @@ def test_staircase_refinement(xys):
     for i, (tagged_rec_set, _) in enumerate(refiner):
         rec_set = set(r for _, r in tagged_rec_set)
         # TODO: assert convergence rather than hard coded limit
-        if max(r.data.volume for r in rec_set) < 1e-1:
+        if max(r.volume for r in rec_set) < 1e-1:
             break
         assert i <= 2 * len(xs)
         prev = rec_set
@@ -152,9 +153,9 @@ def test_staircase_refinement(xys):
     # TODO: check that the recset contains the staircase
     # Check that the recset refines the previous one
     event(f"len {len(rec_set)}")
-    event(f"volume {max(r.data.volume for r in rec_set)}")
+    event(f"volume {max(r.volume for r in rec_set)}")
     if len(rec_set) > 1 and prev is not None:
-        assert all(any(t2.data in t1.data for t2 in rec_set) for t1 in prev)
+        assert all(any(t2 in t1 for t2 in rec_set) for t1 in prev)
 
         # Check that the recset is not disjoint
         # TODO

@@ -1,9 +1,5 @@
-from collections import defaultdict
-from itertools import product
-
 import numpy as np
 import funcy as fn
-from lenses import bind
 
 from multidim_threshold import rectangles as mdtr  # Interval
 

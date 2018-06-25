@@ -57,13 +57,15 @@ def test_label(rec1, data):
         st.floats(min_value=0, max_value=1)))
 def test_rec_oracle(k, point):
     n = 2**k
-    oracle = lambda p: p[1] >= 1 - p[0] + 1 / n
-    tree = mdtr.RecTree(2, oracle)
 
+    def oracle(p):
+        return p[1] >= 1 - p[0] + 1 / n
+
+    tree = mdtr.RecTree(2, oracle)
     x, y = point
     if y - 1 + x - 1/n < 0.01:  # Requires too much precision.
         return
-    
+
     lbl = tree.label(point)
     if oracle(point):
         assert lbl == CMP.ForwardCone

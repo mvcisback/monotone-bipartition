@@ -5,14 +5,11 @@ import funcy as fn
 import hypothesis.strategies as st
 import numpy as np
 import pytest
-from hypothesis import event, example, given, settings
+from hypothesis import event, given, settings
 
-import multidim_threshold as mdt
 import multidim_threshold.hausdorff as mdth
-from multidim_threshold import rectangles as mdtr
 from multidim_threshold.refine import hausdorff_bounds
-from multidim_threshold.test_refine import (GEN_RECS, GEN_STAIRCASES,
-                                            staircase_oracle, to_rec)
+from multidim_threshold.test_refine import GEN_STAIRCASES, staircase_oracle
 
 
 Point2d = namedtuple("Point2d", ['x', 'y'])
@@ -78,7 +75,6 @@ def test_staircase_hausdorff_bounds_diag2(xys):
 
     f = [Point2d(x, y) for x, y in zip(*(xs, ys))]
     oracle = staircase_oracle(xs, ys)
-    unit_rec = mdtr.to_rec([(0, 1), (0, 1)])
     d_true = staircase_hausdorff(f, f)
     d_bounds = hausdorff_bounds((2, oracle), (2, oracle))
     for i, d in enumerate(d_bounds):
@@ -100,7 +96,6 @@ def test_staircase_hausdorff_bounds2(xys1, xys2):
 
     o1 = staircase_oracle(xs1, ys1)
     o2 = staircase_oracle(xs2, ys2)
-    unit_rec = mdtr.to_rec([(0, 1), (0, 1)])
     d_true = staircase_hausdorff(f1, f2)
     d_bounds = hausdorff_bounds((2, o1), (2, o2))
     for i, d in enumerate(d_bounds):
