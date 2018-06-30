@@ -216,3 +216,4 @@ class RecTree(_RecTree):
     def dist(self, other, eps=1e-4, avg=True):
         d_bounds = mdtr.hausdorff_bounds(self, other, eps=eps)
         d_itvl = fn.first(itvl for itvl in d_bounds if itvl.radius < eps)
+        return sum(d_itvl) / d_itvl.radius if avg else d_itvl 
