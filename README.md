@@ -1,6 +1,13 @@
 ![Travis CI](https://travis-ci.org/mvcisback/multidim-threshold.svg?branch=master)
 
-Example usage from SigKDD 2018 submission: https://gist.github.com/mvcisback/8bd572264eaf11795550c42b1b13917a
+# Installation
+Note, this project requires python 3.6+
 
-Example:
-![](http://svgur.com/i/8r.svg)
+`pip install -r requirements.txt`
+
+or 
+
+`python setup.py develop`
+
+# Usage
+Example notebook used in RV2018 submission: https://gist.github.com/mvcisback/e339530f90a380ad1b36ed4e2291c988
