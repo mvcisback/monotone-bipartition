@@ -4,14 +4,15 @@ import numpy as np
 from hypothesis import event, given
 
 import multidim_threshold as mdt
-from multidim_threshold.refine import _refiner
+from multidim_threshold import rectangles
+from multidim_threshold import refine
 
 
 def to_rec(xs):
     bots = [b for b, _ in xs]
     tops = [max(b + d, 1) for b, d in xs]
     intervals = tuple(zip(bots, tops))
-    return mdt.to_rec(intervals=intervals)
+    return rectangles.to_rec(intervals=intervals)
 
 
 GEN_RECS = st.builds(to_rec,
@@ -61,7 +62,7 @@ def test_backward_forward_cone_relations(r, i1, i2):
     # TODO
     # assert mdt.utils.intersect(b, f)
     intervals = tuple(zip(b.bot, f.top))
-    assert r == mdt.to_rec(intervals=intervals)
+    assert r == rectangles.to_rec(intervals=intervals)
 
 
 @given(GEN_RECS,
@@ -69,7 +70,7 @@ def test_backward_forward_cone_relations(r, i1, i2):
            min_value=0, max_value=1))
 def test_gen_incomparables(r, i1, i2):
     lo, hi = relative_lo_hi(r, i1, i2)
-    subdivison = list(r.subdivide(mdt.to_rec(zip(lo, hi))))
+    subdivison = list(r.subdivide(rectangles.to_rec(zip(lo, hi))))
     assert all(i in r for i in subdivison)
     # TODO test Intersections
 
@@ -77,18 +78,17 @@ def test_gen_incomparables(r, i1, i2):
 @given(GEN_RECS)
 def test_box_edges(r):
     n = len(r.bot)
-    m = len(list(mdt.box_edges(r)))
+    m = len(list(refine.box_edges(r)))
     assert m == n * 2**(n - 1)
 
 
 def test_refine():
-    rec = mdt.to_rec([(0, 1), (0, 1)])
-    refiner = _refiner(lambda p: p[0] >= 0.5)
-    next(refiner)
-    subdivided = refiner.send(rec)
-    assert min(r.volume for r in subdivided) > 0
-    assert max(r.volume for r in subdivided) < rec.volume
-    assert all(r2 in rec for r2 in subdivided)
+    tree = rectangles.RecTree(2, lambda p: p[0] >= 0.5)
+    rec = tree.data
+    subdivided = tree.children
+    assert min(t.data.volume for t in subdivided) > 0
+    assert max(t.data.volume for t in subdivided) < rec.volume
+    assert all(t.data in rec for t in subdivided)
 
 
 def _staircase(n):
@@ -132,17 +132,17 @@ def test_staircase_refinement(xys):
 
     # Check bounding box is tight
     max_xy = np.array([max(xs), max(ys)])
-    unit_rec = mdt.to_rec(((0, 1), (0, 1)))
-    bounding = mdt.bounding_box(unit_rec, f)
+    unit_rec = rectangles.unit_rec(2)
+    bounding = refine.bounding_box(unit_rec, f)
 
     assert all(a >= b for a, b in zip(unit_rec.top, bounding.top))
     assert all(a <= b for a, b in zip(unit_rec.bot, bounding.bot))
     np.testing.assert_array_almost_equal(bounding.top, max_xy, decimal=1)
 
-    refiner = mdt.volume_guided_refinement([unit_rec], oracle=f)
+    refiner = refine.volume_guided_refinement((2, f))
     prev = None
     # Test properties until refined to fixed point
-    for i, tagged_rec_set in enumerate(refiner):
+    for i, (tagged_rec_set, _) in enumerate(refiner):
         rec_set = set(r for _, r in tagged_rec_set)
         # TODO: assert convergence rather than hard coded limit
         if max(r.volume for r in rec_set) < 1e-1:
@@ -154,8 +154,8 @@ def test_staircase_refinement(xys):
     # Check that the recset refines the previous one
     event(f"len {len(rec_set)}")
     event(f"volume {max(r.volume for r in rec_set)}")
-    if len(rec_set) > 1:
-        assert all(any(r2 in r1 for r2 in rec_set) for r1 in prev)
+    if len(rec_set) > 1 and prev is not None:
+        assert all(any(t2 in t1 for t2 in rec_set) for t1 in prev)
 
         # Check that the recset is not disjoint
         # TODO

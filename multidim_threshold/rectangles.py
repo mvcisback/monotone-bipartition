@@ -1,12 +1,16 @@
 import operator as op
 from itertools import product
 from functools import reduce
-from typing import Iterable, NamedTuple, Tuple
+from typing import Iterable, NamedTuple
 from enum import Enum
 
 import funcy as fn
 import numpy as np
 from lenses import lens
+
+from multidim_threshold import search as mdts  # SearchResultType, binsearch
+from multidim_threshold import refine as mdtr
+
 
 bot_lens = lens.intervals.Each().bot
 top_lens = lens.intervals.Each().top
@@ -162,24 +166,26 @@ def to_rec(intervals, error=0):
     return Rec(intervals, error)
 
 
-def bounding_box(rec1, rec2):
-    bots = zip(fn.pluck(0, rec1.intervals), fn.pluck(0, rec2.intervals))
-    tops = zip(fn.pluck(1, rec1.intervals), fn.pluck(1, rec2.intervals))
-    bot = map(min, bots)
-    top = map(max, tops)
-    return to_rec(list(zip(bot, top)))
+def unit_rec(n):
+    return to_rec([[0, 1]]*n)
 
 
-class RecTree(NamedTuple):
-    children: Tuple['RecTree']
-    data: Rec
+class _RecTree:
+    def __init__(self, data, oracle):
+        self.data = data
+        self.oracle = oracle
 
-    def label(self, point, approx=True):
-        if self.children is None:
-            lbl = self.data.label(point)
-            if (not approx) or (lbl != CMP.Inside):
-                return lbl
+    @property
+    @fn.memoize
+    def children(self):
+        children = (r for r in mdtr.refine(self.data, self.oracle))
+        return fn.lmap(lambda r: _RecTree(r, self.oracle), children)
 
+    def __lt__(self, other):
+        return self.data < other.data
+
+    def label(self, point, approx=True, max_depth=10):
+        if max_depth <= 0:
             bot, top = map(np.array, (self.data.bot, self.data.top))
             if (np.array(point) > (top + bot)/2).all():
                 return CMP.ForwardCone
@@ -192,35 +198,29 @@ class RecTree(NamedTuple):
             if lbl in (CMP.ForwardCone, CMP.BackwardCone):
                 return lbl
             elif lbl == CMP.Inside:
-                return child.label(point, approx)
+                return child.label(point, approx, max_depth-1)
 
         # BFS for label.
         for child in self.children:
-            lbl = child.label(point, approx)
+            lbl = child.label(point, approx, max_depth-1)
             if lbl != CMP.Incomparable:
                 return lbl
 
-        return CMP.Incomparable
 
-    def walk(self):
-        yield self.data
-        if self.children is not None:
-            for child in self.children:
-                yield from child.walk()
+class RecTree(_RecTree):
+    def __init__(self, n, oracle):
+        data = mdtr.bounding_box(unit_rec(n), oracle)
+        oracle = fn.partial(mdts.binsearch, oracle=oracle)
+        super().__init__(data=data, oracle=oracle)
 
+    def dist(self, other, eps=1e-4, avg=True):
+        d_bounds = mdtr.hausdorff_bounds(self, other, eps=eps)
+        d_itvl = fn.first(itvl for itvl in d_bounds if itvl.radius < eps)
+        return sum(d_itvl) / 2 if avg else d_itvl 
 
-def zipWith(f, xs, ys):
-    return [f(x, y) for x, y in zip(xs, ys)]
-
-
-def _make_node(left, right):
-    rec = bounding_box(left.data, right.data)
-    return RecTree(children=(left, right), data=rec)
-
-
-def make_rectree(recs):
-    nodes = [RecTree(None, rec) for rec in recs]
-    while len(nodes) > 1:
-        nodes = zipWith(_make_node, nodes[::2], nodes[1::2])
-
-    return nodes[0]
+    def boundary(self, eps=1e-2):
+        refinements = fn.pluck(0, mdtr.volume_guided_refinement(self))
+        for cost_boundary in refinements:
+            max_vol = -cost_boundary[0][0]
+            if max_vol <= eps:
+                return fn.lpluck(1, cost_boundary)  # Drop volumes
