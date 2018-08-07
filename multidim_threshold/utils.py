@@ -15,23 +15,20 @@ def normalize_oracle(domain, oracle, params):
     return oracle(params)
 
 
-def _normalize_forest(dim, forest, oracles):
+def _normalize_forest(forest):
+    dim = len(forest[0].data.intervals)
     bounds = [t.data.intervals for t in forest]
     domain = recs.to_rec([reduce(op.or_, itvls) for itvls in zip(*bounds)])
     normalizer = normalize_oracle(domain)
+    oracles = [t.oracle.keywords['oracle'] for t in forest]
     return [recs.RecTree(dim, normalizer(f)) for f in oracles]
 
 
-def make_forest(dim, oracles, normalize=False):
-    forest = [recs.RecTree(dim, f) for f in oracles]
-    return _normalize_forest(dim, forest, oracles) if normalize else forest
-
-
-def adjacency_matrix(dim, oracles, normalize=False, eps=1e-3):
-    forest = make_forest(dim, oracles, normalize)
-
-    # TODO: only loop through lower triangular. 
-    mat = -np.ones((6, 6))
+def adjacency_matrix(forest, normalize=True, eps=1e-3):
+    if normalize:
+        forest = _normalize_forest(forest)
+    # TODO: only loop through lower triangular.
+    mat = -np.ones((len(forest), len(forest)))
     for (i, x), (j, y) in product(enumerate(forest), enumerate(forest)):
         if i == j:
             mat[i, j] = 0

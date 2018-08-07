@@ -216,4 +216,11 @@ class RecTree(_RecTree):
     def dist(self, other, eps=1e-4, avg=True):
         d_bounds = mdtr.hausdorff_bounds(self, other, eps=eps)
         d_itvl = fn.first(itvl for itvl in d_bounds if itvl.radius < eps)
-        return sum(d_itvl) / d_itvl.radius if avg else d_itvl 
+        return sum(d_itvl) / 2 if avg else d_itvl 
+
+    def boundary(self, eps=1e-2):
+        refinements = fn.pluck(0, mdtr.volume_guided_refinement(self))
+        for cost_boundary in refinements:
+            max_vol = -cost_boundary[0][0]
+            if max_vol <= eps:
+                return fn.lpluck(1, cost_boundary)  # Drop volumes

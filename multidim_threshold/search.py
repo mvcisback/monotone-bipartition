@@ -5,7 +5,7 @@ import numpy as np
 
 from multidim_threshold import rectangles as mdtr
 
-EPS = 1e-4
+EPS = 1e-2
 
 
 class SearchResultType(Enum):
@@ -20,7 +20,7 @@ def diagonal_convex_comb(r):
     return lambda t: bot + t * diag
 
 
-def binsearch(r, oracle, eps=EPS):
+def binsearch(r, oracle, eps=EPS, find_lambda=False):
     """Binary search over the diagonal of the rectangle.
 
     Returns the lower and upper approximation on the diagonal.
@@ -40,4 +40,12 @@ def binsearch(r, oracle, eps=EPS):
         while (f(hi) - f(lo) > eps).any():
             mid = lo + (hi - lo) / 2
             lo, hi = (lo, mid) if feval(mid) else (mid, hi)
-    return result_type, mdtr.to_rec(zip(f(lo), f(hi)))
+    
+    if find_lambda:
+        if result_type == SearchResultType.TRIVIALLY_TRUE:
+            return result_type, -1
+        elif result_type == SearchResultType.TRIVIALLY_FALSE:
+            return result_type, 2
+        return result_type, (lo+hi)/2
+    else:
+        return result_type, mdtr.to_rec(zip(f(lo), f(hi)))

@@ -39,18 +39,18 @@ def bounding_box(r, oracle):
     """Compute Bounding box. TODO: clean up"""
     recs = list(box_edges(r))
 
-    tops = [(mdts.binsearch(r2, oracle)[1].top, tuple(
+    itvls = [(mdts.binsearch(r2, oracle)[1], tuple(
         (np.array(r2.top) - np.array(r2.bot) != 0))) for r2 in recs]
-    tops = fn.group_by(ig(1), tops)
+    itvls = fn.group_by(ig(1), itvls)
 
-    def _top_components():
-        for key, vals in tops.items():
+    def _itvls():
+        for key, vals in itvls.items():
             idx = key.index(True)
-            yield max(v[0][idx] for v in vals)
+            top = max(v[0].top[idx] for v in vals)
+            bot = min(v[0].bot[idx] for v in vals)
+            yield bot, top
 
-    top = np.array(list(_top_components()))
-    intervals = tuple(zip(r.bot, top))
-    return mdtr.to_rec(intervals=intervals)
+    return mdtr.to_rec(intervals=_itvls())
 
 
 def _midpoint(i):
