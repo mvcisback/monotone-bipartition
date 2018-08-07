@@ -40,7 +40,7 @@ def binsearch(r, oracle, eps=EPS, find_lambda=False):
         while (f(hi) - f(lo) > eps).any():
             mid = lo + (hi - lo) / 2
             lo, hi = (lo, mid) if feval(mid) else (mid, hi)
-    
+
     if find_lambda:
         if result_type == SearchResultType.TRIVIALLY_TRUE:
             return result_type, -1
