@@ -1,3 +1,3 @@
 # flake8: noqa
-from multidim_threshold.rectangles import RecTree
+from monotone_bipartition.rectangles import RecTree
 

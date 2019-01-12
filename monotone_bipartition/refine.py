@@ -8,9 +8,9 @@ from operator import itemgetter as ig
 import funcy as fn
 import numpy as np
 
-from multidim_threshold import hausdorff as mdth
-from multidim_threshold import rectangles as mdtr  # Interval, Rec, to_rec
-from multidim_threshold import search as mdts  # SearchResultType, binsearch
+from monotone_bipartition import hausdorff as mdth
+from monotone_bipartition import rectangles as mdtr  # Interval, Rec, to_rec
+from monotone_bipartition import search as mdts  # SearchResultType, binsearch
 
 
 def box_edges(r):

@@ -7,9 +7,9 @@ import numpy as np
 import pytest
 from hypothesis import event, given, settings
 
-import multidim_threshold.hausdorff as mdth
-from multidim_threshold.refine import hausdorff_bounds
-from multidim_threshold.test_refine import GEN_STAIRCASES, staircase_oracle
+import monotone_bipartition.hausdorff as mdth
+from monotone_bipartition.refine import hausdorff_bounds
+from monotone_bipartition.test_refine import GEN_STAIRCASES, staircase_oracle
 
 
 Point2d = namedtuple("Point2d", ['x', 'y'])

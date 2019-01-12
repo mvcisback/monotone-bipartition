@@ -3,7 +3,7 @@ from enum import Enum, auto
 import funcy as fn
 import numpy as np
 
-from multidim_threshold import rectangles as mdtr
+from monotone_bipartition import rectangles as mdtr
 
 EPS = 1e-2
 

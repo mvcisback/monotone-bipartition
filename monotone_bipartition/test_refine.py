@@ -3,9 +3,9 @@ import hypothesis.strategies as st
 import numpy as np
 from hypothesis import event, given
 
-import multidim_threshold as mdt
-from multidim_threshold import rectangles
-from multidim_threshold import refine
+import monotone_bipartition as mdt
+from monotone_bipartition import rectangles
+from monotone_bipartition import refine
 
 
 def to_rec(xs):

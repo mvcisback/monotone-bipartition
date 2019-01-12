@@ -1,7 +1,7 @@
 import numpy as np
 import funcy as fn
 
-from multidim_threshold import rectangles as mdtr  # Interval
+from multidim_bipartition import rectangles as mdtr  # Interval
 
 
 def pointwise_hausdorff(xs, ys):

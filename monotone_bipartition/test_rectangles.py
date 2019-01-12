@@ -5,9 +5,9 @@ import numpy as np
 import funcy as fn
 from hypothesis import given
 
-from multidim_threshold import rectangles as mdtr
-from multidim_threshold.rectangles import CMP
-from multidim_threshold.test_refine import GEN_RECS
+from monotone_bipartition import rectangles as mdtr
+from monotone_bipartition.rectangles import CMP
+from monotone_bipartition.test_refine import GEN_RECS
 
 
 @given(GEN_RECS, st.data())
