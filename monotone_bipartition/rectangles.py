@@ -8,8 +8,8 @@ import funcy as fn
 import numpy as np
 from lenses import lens
 
-from multidim_threshold import search as mdts  # SearchResultType, binsearch
-from multidim_threshold import refine as mdtr
+from monotone_bipartition import search as mdts  # SearchResultType, binsearch
+from monotone_bipartition import refine as mdtr
 
 
 bot_lens = lens.intervals.Each().bot

@@ -5,7 +5,7 @@ from itertools import product
 import funcy as fn
 import numpy as np
 
-from multidim_threshold import rectangles as recs
+from monotone_bipartition import rectangles as recs
 
 
 # TODO: move into library.
