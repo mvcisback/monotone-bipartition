@@ -79,10 +79,8 @@ def test_staircase_hausdorff_bounds_diag2(xys):
     d_bounds = hausdorff_bounds((2, oracle), (2, oracle))
     for i, d in enumerate(d_bounds):
         assert d.bot <= d_true <= d.top
-        if d.radius < 1e-2:
-            break
-        elif i > 3:
-            # assert False  #  TODO
+        
+        if d.radius < 1e-2 or i > 3:
             break
 
 
