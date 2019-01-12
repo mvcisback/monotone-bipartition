@@ -1,6 +1,6 @@
 funcy==1.9.1
 hypothesis==3.32.1
-isort==4.2.15
+lazytree==0.1.0
 lenses==0.3.0
 pytest==3.2.3
 pytest-bpdb==0.1.4
