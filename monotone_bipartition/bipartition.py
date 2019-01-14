@@ -21,6 +21,7 @@ class BiPartition:
         return self.tree.view()
     
     def dist(self, other) -> float:
+        # TODO: Implement adaptive version.
         raise NotImplementedError
 
     def label(self, point) -> bool:
@@ -37,6 +38,13 @@ class BiPartition:
                 return True
             elif rec in domain.backward_cone(rec.bot):
                 return False
+
+    def approx(tol=1e-4):
+        recs = self.tree \
+                   .prune(isleaf=lambda x: shortest_edge <= tol / 2) \
+                   .leaves()
+
+        return list(yield from recs)
 
 
 def from_threshold(func, dim: int) -> BiPartition:
