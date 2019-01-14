@@ -1,8 +1,10 @@
 from functools import partial
 
 import attr
+import funcy as fn
 from lazytree import LazyTree
 
+from monotone_bipartition import hausdorff as mbph
 from monotone_bipartition import rectangles  # unit_rec
 from monotone_bipartition import refine as mbpr  # bounding_box
 from monotone_bipartition import search as mdts  # binsearch
@@ -19,10 +21,18 @@ class BiPartition:
     @property
     def domain(self):
         return self.tree.view()
+
+    def approx(tol=1e-4):
+        recs = self.tree \
+                   .prune(isleaf=lambda x: shortest_edge <= tol) \
+                   .leaves()
+
+        return list(yield from recs)
     
-    def dist(self, other) -> float:
+    def dist(self, other, tol=1e-4) -> float:
         # TODO: Implement adaptive version.
-        raise NotImplementedError
+        recset1, recset2 = self.approx(tol/2), other.approx(tol/2)
+        return mbph.discretized_and_pointwise_hausdorff(recset1, recset2)
 
     def label(self, point) -> bool:
         # TODO: Should support either finite precision or max depth.
@@ -38,20 +48,13 @@ class BiPartition:
                 return True
             elif rec in domain.backward_cone(rec.bot):
                 return False
+    
 
-    def approx(tol=1e-4):
-        recs = self.tree \
-                   .prune(isleaf=lambda x: shortest_edge <= tol / 2) \
-                   .leaves()
-
-        return list(yield from recs)
-
-
-def from_threshold(func, dim: int) -> BiPartition:
+def from_threshold(func, dim: int, *, memoize_nodes=True) -> BiPartition:
     bounding_box = mbpr.bounding_box(rectangles.unit_rec(dim), func)
     diagsearch = partial(mdts.binsearch, oracle=func)
     refine = partial(mbpr.refine, diagsearch=diagsearch)
-    return BiPartition(LazyTree(
-        root=bounding_box,
-        child_map=refine,
-    ))
+    if memoize_nodes:
+        refine = fn.memoize()(refine)
+
+    return BiPartition(LazyTree(root=bounding_box, child_map=refine))
