@@ -39,12 +39,12 @@ class BiPartition:
         domain = self.domain
 
         def not_comparable(rec):
+            import pdb; pdb.set_trace()
             return point not in domain.forward_cone(rec.bot) and \
                 point not in domain.backward_cone(rec.top)
 
         recs = self.tree.prune(not_comparable).leaves()
         for rec in recs:
-            import pdb; pdb.set_trace()
             if rec in domain.forward_cone(rec.top):
                 return True
             elif rec in domain.backward_cone(rec.bot):
