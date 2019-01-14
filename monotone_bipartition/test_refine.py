@@ -1,7 +1,7 @@
 import funcy as fn
 import hypothesis.strategies as st
 import numpy as np
-from hypothesis import event, given
+from hypothesis import given
 
 import monotone_bipartition as mdt
 from monotone_bipartition import rectangles

@@ -38,7 +38,7 @@ class BiPartition:
         # TODO: Should support either finite precision or max depth.
         domain = self.domain
 
-        def not_comparable(rec, point):
+        def not_comparable(rec):
             return point not in domain.forward_cone(rec.bot) and \
                 point not in domain.backward_cone(rec.top)
 
