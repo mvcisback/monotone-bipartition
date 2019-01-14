@@ -21,8 +21,8 @@ class BiPartition:
 
 def from_threshold(func, dim: int) -> BiPartition:
     bounding_box = mbpr.bounding_box(rectangles.unit_rec(dim), func)
-    diagsearch = fn.partial(mdts.binsearch, oracle=func)
-    refine = lambda r: mbpr.refine(r, diagsearch)
+    diagsearch = partial(mdts.binsearch, oracle=func)
+    refine = partial(mbpr.refine, diagsearch=diagsearch)
     return BiPartition(LazyTree(
         root=bounding_box,
         child_map=refine,
