@@ -10,9 +10,10 @@ setup(
     author_email='marcell.vc@eecs.berkeley.edu',
     license='MIT',
     install_requires=[
+        'funcy',
         'lazytree',
         'lenses',
-        'funcy',
+        'numpy',
     ],
     packages=find_packages(),
 )
