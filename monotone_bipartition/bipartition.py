@@ -27,7 +27,7 @@ class BiPartition:
                    .prune(isleaf=lambda x: shortest_edge <= tol) \
                    .leaves()
 
-        return list(yield from recs)
+        return list(recs)
     
     def dist(self, other, tol=1e-4) -> float:
         # TODO: Implement adaptive version.
