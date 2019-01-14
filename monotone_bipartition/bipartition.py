@@ -22,13 +22,13 @@ class BiPartition:
     def domain(self):
         return self.tree.view()
 
-    def approx(tol=1e-4):
+    def approx(self, tol=1e-4):
         recs = self.tree \
-                   .prune(isleaf=lambda x: shortest_edge <= tol) \
+                   .prune(isleaf=lambda r: r.shortest_edge <= tol) \
                    .leaves()
 
         return list(recs)
-    
+
     def dist(self, other, tol=1e-4) -> float:
         # TODO: Implement adaptive version.
         recset1, recset2 = self.approx(tol/2), other.approx(tol/2)
@@ -48,7 +48,7 @@ class BiPartition:
                 return True
             elif rec in domain.backward_cone(rec.bot):
                 return False
-    
+
 
 def from_threshold(func, dim: int, *, memoize_nodes=True) -> BiPartition:
     bounding_box = mbpr.bounding_box(rectangles.unit_rec(dim), func)
