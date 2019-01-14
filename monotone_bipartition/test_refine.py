@@ -126,7 +126,7 @@ def test_staircase_oracle(xys, test_points):
 
 
 @given(GEN_STAIRCASES)
-def test_staircase_refinement(xys):
+def test_staircase_bounding(xys):
     xs, ys = xys
     f = staircase_oracle(xs, ys)
 
@@ -138,29 +138,3 @@ def test_staircase_refinement(xys):
     assert all(a >= b for a, b in zip(unit_rec.top, bounding.top))
     assert all(a <= b for a, b in zip(unit_rec.bot, bounding.bot))
     np.testing.assert_array_almost_equal(bounding.top, max_xy, decimal=1)
-
-    refiner = refine.volume_guided_refinement((2, f))
-    prev = None
-    # Test properties until refined to fixed point
-    for i, (tagged_rec_set, _) in enumerate(refiner):
-        rec_set = set(r for _, r in tagged_rec_set)
-        # TODO: assert convergence rather than hard coded limit
-        if max(r.volume for r in rec_set) < 1e-1:
-            break
-        assert i <= 2 * len(xs)
-        prev = rec_set
-
-    # TODO: check that the recset contains the staircase
-    # Check that the recset refines the previous one
-    event(f"len {len(rec_set)}")
-    event(f"volume {max(r.volume for r in rec_set)}")
-    if len(rec_set) > 1 and prev is not None:
-        assert all(any(t2 in t1 for t2 in rec_set) for t1 in prev)
-
-        # Check that the recset is not disjoint
-        # TODO
-        # assert all(any(mdt.utils.intersect(r1, r2) for r2 in rec_set - {r1})
-        # for r1 in rec_set)
-
-    # Check that for staircase shape
-    # TODO: rounding to the 1/len(x) should recover xs and ys

@@ -49,6 +49,8 @@ class BiPartition:
             elif rec in domain.backward_cone(rec.bot):
                 return False
 
+        raise RuntimeError("Point outside domain?!?!?!")
+
 
 def from_threshold(func, dim: int, *, memoize_nodes=True) -> BiPartition:
     bounding_box = mbpr.bounding_box(rectangles.unit_rec(dim), func)

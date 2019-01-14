@@ -8,6 +8,7 @@ from operator import itemgetter as ig
 import funcy as fn
 import numpy as np
 
+import monotone_bipartition as mbp
 from monotone_bipartition import hausdorff as mdth
 from monotone_bipartition import rectangles as mdtr  # Interval, Rec, to_rec
 from monotone_bipartition import search as mdts  # SearchResultType, binsearch
@@ -75,52 +76,3 @@ def refine(rec, diagsearch, pedantic=False):
             return [mdtr.to_rec(zip(rec.top, rec.top))]
 
     return list(rec.subdivide(rec2, drop_fb=drop_fb))
-
-
-def cost_guided_refinement(n_oracle_or_tree, cost):
-    """Generator for iteratively approximating the oracle's threshold."""
-    if isinstance(n_oracle_or_tree, mdtr.RecTree):
-        tree = n_oracle_or_tree
-    else:
-        tree = mdtr.RecTree(*n_oracle_or_tree)
-
-    queue = [(cost(t), t) for t in tree.children]
-    heapify(queue)
-    while queue:
-        # TODO: when bounding
-        yield [(c, t.data) for c, t in queue], tree
-        _, tree = hpop(queue)
-
-        for t in tree.children:
-            hpush(queue, (cost(t), t))
-
-
-def volume_guided_refinement(n_oracle_or_tree):
-    return cost_guided_refinement(
-        n_oracle_or_tree,
-        cost=lambda t: -t.data.volume
-    )
-
-
-def edge_length_guided_refinement(n_oracle_or_tree):
-    return cost_guided_refinement(
-        n_oracle_or_tree,
-        cost=lambda t: -t.data.shortest_edge
-    )
-
-
-@fn.curry
-def _extract_recset(eps, refiner):
-    refined, _ = fn.first(
-        filter(lambda xs: -xs[0][0][0] <= eps, refiner))
-    return fn.lpluck(1, refined)
-
-
-def hausdorff_bounds(n_oracle_or_tree1, n_oracle_or_tree2, eps=1e-1, k=3):
-    refiner1 = edge_length_guided_refinement(n_oracle_or_tree1)
-    refiner2 = edge_length_guided_refinement(n_oracle_or_tree2)
-
-    while True:
-        recset1, recset2 = map(_extract_recset(eps), (refiner1, refiner2))
-        yield mdth.discretized_and_pointwise_hausdorff(recset1, recset2, k)
-        eps /= 2
