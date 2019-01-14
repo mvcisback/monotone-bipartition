@@ -44,6 +44,7 @@ class BiPartition:
 
         recs = self.tree.prune(not_comparable).leaves()
         for rec in recs:
+            import pdb; pdb.set_trace()
             if rec in domain.forward_cone(rec.top):
                 return True
             elif rec in domain.backward_cone(rec.bot):
