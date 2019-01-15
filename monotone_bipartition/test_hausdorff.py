@@ -7,8 +7,8 @@ import numpy as np
 import pytest
 from hypothesis import event, given, settings
 
+import monotone_bipartition as mbp
 import monotone_bipartition.hausdorff as mdth
-from monotone_bipartition.refine import hausdorff_bounds
 from monotone_bipartition.test_refine import GEN_STAIRCASES, staircase_oracle
 
 
@@ -76,12 +76,11 @@ def test_staircase_hausdorff_bounds_diag2(xys):
     f = [Point2d(x, y) for x, y in zip(*(xs, ys))]
     oracle = staircase_oracle(xs, ys)
     d_true = staircase_hausdorff(f, f)
-    d_bounds = hausdorff_bounds((2, oracle), (2, oracle))
-    for i, d in enumerate(d_bounds):
-        assert d.bot <= d_true <= d.top
-
-        if d.radius < 1e-2 or i > 3:
-            break
+    mbpart = mbp.from_threshold(oracle, 2)
+    d = mbpart.dist(mbpart, tol=1e-3)
+    
+    assert d.top - d.bot <= 1e-3
+    assert d.bot <= d_true <= d.top
 
 
 @settings(max_examples=20)
