@@ -1,15 +1,9 @@
 """Implements muli-dimensional threshold discovery via binary search."""
-from heapq import heappop as hpop
-from heapq import heappush as hpush
-from heapq import heapify
 from itertools import product
-from operator import itemgetter as ig
 
 import funcy as fn
 import numpy as np
 
-import monotone_bipartition as mbp
-from monotone_bipartition import hausdorff as mdth
 from monotone_bipartition import rectangles as mdtr  # Interval, Rec, to_rec
 from monotone_bipartition import search as mdts  # SearchResultType, binsearch
 
@@ -47,11 +41,11 @@ def bounding_box(domain, oracle, eps=1e-5):
     elif all(t == mdts.SearchResultType.TRIVIALLY_TRUE for t in rtypes):
         return mdtr.to_rec(domain.dim*[[0, 0]])
 
-    itvls = [r for rtype, r in edges if rtype == mdts.SearchResultType.NON_TRIVIAL]
-    
+    itvls = [r for t, r in edges if t == mdts.SearchResultType.NON_TRIVIAL]
+
     def box_to_include(r):
         return domain.backward_cone(r.top) & domain.forward_cone(r.bot)
-            
+
     bbox, *recs = fn.lmap(box_to_include, itvls)
     for r in recs:
         bbox = bbox.sup(r)

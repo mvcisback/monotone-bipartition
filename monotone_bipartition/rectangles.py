@@ -4,12 +4,8 @@ from functools import reduce
 from typing import Iterable, NamedTuple
 from enum import Enum
 
-import funcy as fn
 import numpy as np
 from lenses import lens
-
-from monotone_bipartition import search as mdts  # SearchResultType, binsearch
-from monotone_bipartition import refine as mdtr
 
 
 bot_lens = lens.intervals.Each().bot
@@ -150,10 +146,14 @@ class Rec(NamedTuple):
         return all(i2 in i1 for i1, i2 in zip(self.intervals, r.intervals))
 
     def __and__(self, other):
-        return to_rec([i1 & i2 for i1, i2 in zip(self.intervals, other.intervals)])
+        return to_rec(
+            [i1 & i2 for i1, i2 in zip(self.intervals, other.intervals)]
+        )
 
     def sup(self, other):
-        return to_rec([i1 | i2 for i1, i2 in zip(self.intervals, other.intervals)])
+        return to_rec(
+            [i1 | i2 for i1, i2 in zip(self.intervals, other.intervals)]
+        )
 
     def discretize(self, eps=3):
         return list(product(*(i.discretize(eps) for i in self.intervals)))

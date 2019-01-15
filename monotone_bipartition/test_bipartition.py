@@ -20,7 +20,7 @@ def test_bipartition2d(b, m, test_params):
     part = mdt.from_threshold(threshold, 2)
 
     for x, y in test_params:
-        if threshold((x - 1e-4, y - 1e-4)) == threshold((x +1e-4, y + 1e-4)):
+        if threshold((x - 1e-4, y - 1e-4)) == threshold((x + 1e-4, y + 1e-4)):
             assert part.label((x, y)) == threshold((x, y))
 
 
