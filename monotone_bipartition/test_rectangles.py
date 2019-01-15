@@ -5,7 +5,7 @@ import numpy as np
 import funcy as fn
 from hypothesis import given
 
-from monotone_bipartition import rectangles as mdtr
+import monotone_bipartition as mbp
 from monotone_bipartition.rectangles import CMP
 from monotone_bipartition.test_refine import GEN_RECS
 
@@ -61,13 +61,14 @@ def test_rec_oracle(k, point):
     def oracle(p):
         return p[1] >= 1 - p[0] + 1 / n
 
-    tree = mdtr.RecTree(2, oracle)
     x, y = point
     if y - 1 + x - 1/n < 0.01:  # Requires too much precision.
         return
 
-    lbl = tree.label(point)
+    part = mbp.from_threshold(oracle, 2)
+
+    lbl = part.label(point)
     if oracle(point):
-        assert lbl == CMP.ForwardCone
+        assert lbl
     else:
-        assert lbl == CMP.BackwardCone
+        assert not lbl
