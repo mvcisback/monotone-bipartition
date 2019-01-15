@@ -36,22 +36,27 @@ def box_edges(r):
         yield mdtr.to_rec(intervals=intervals)
 
 
-def bounding_box(r, oracle):
+def bounding_box(domain, oracle, eps=1e-5):
     """Compute Bounding box. TODO: clean up"""
-    recs = list(box_edges(r))
+    # TODO: remove r input and assume unit rec.
+    edges = [mdts.binsearch(r2, oracle, eps=eps) for r2 in box_edges(domain)]
 
-    itvls = [(mdts.binsearch(r2, oracle)[1], tuple(
-        (np.array(r2.top) - np.array(r2.bot) != 0))) for r2 in recs]
-    itvls = fn.group_by(ig(1), itvls)
+    rtypes = fn.pluck(0, edges)
+    if all(t == mdts.SearchResultType.TRIVIALLY_FALSE for t in rtypes):
+        return domain
+    elif all(t == mdts.SearchResultType.TRIVIALLY_TRUE for t in rtypes):
+        return mdtr.to_rec(domain.dim*[[0, 0]])
 
-    def _itvls():
-        for key, vals in itvls.items():
-            idx = key.index(True)
-            top = max(v[0].top[idx] for v in vals)
-            bot = min(v[0].bot[idx] for v in vals)
-            yield bot, top
+    itvls = [r for rtype, r in edges if rtype == mdts.SearchResultType.NON_TRIVIAL]
+    
+    def box_to_include(r):
+        return domain.backward_cone(r.top) & domain.forward_cone(r.bot)
+            
+    bbox, *recs = fn.lmap(box_to_include, itvls)
+    for r in recs:
+        bbox = bbox.sup(r)
 
-    return mdtr.to_rec(intervals=_itvls())
+    return bbox
 
 
 def _midpoint(i):

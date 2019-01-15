@@ -18,10 +18,6 @@ class BiPartition:
     def dim(self):
         return len(self.tree.view())
 
-    @property
-    def domain(self):
-        return self.tree.view()
-
     def approx(self, tol=1e-4):
         recs = self.tree \
                    .prune(isleaf=lambda r: r.shortest_edge <= tol) \
@@ -36,19 +32,30 @@ class BiPartition:
 
     def label(self, point) -> bool:
         # TODO: Should support either finite precision or max depth.
-        domain = self.domain
+        domain = rectangles.unit_rec(self.dim)
 
-        def not_comparable(rec):
-            import pdb; pdb.set_trace()
-            return point not in domain.forward_cone(rec.bot) and \
+        def above(rec):
+            return point in domain.forward_cone(rec.bot) and \
                 point not in domain.backward_cone(rec.top)
 
-        recs = self.tree.prune(not_comparable).leaves()
+        def below(rec):
+            return point not in domain.forward_cone(rec.bot) and \
+                point in domain.backward_cone(rec.top)
+
+        def not_inside(rec):
+            return point not in domain.forward_cone(rec.bot) or \
+                point not in domain.backward_cone(rec.top)
+
+        recs = self.tree.prune(isleaf=not_inside).bfs()
         for rec in recs:
-            if rec in domain.forward_cone(rec.top):
+            if above(rec):
                 return True
-            elif rec in domain.backward_cone(rec.bot):
-                return False
+
+            if not not_inside(rec):
+                if all(x == 0 for x in rec.diag):  # point rec.
+                    return True
+            elif below(rec):
+                return all(x == 0 for x in rec.bot)
 
         raise RuntimeError("Point outside domain?!?!?!")
 

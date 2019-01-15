@@ -125,6 +125,19 @@ def test_staircase_oracle(xys, test_points):
         assert f((a, b)) == any(a >= x and b >= y for x, y in zip(*xys))
 
 
+@given(
+    st.floats(min_value=0, max_value=1),
+    st.floats(min_value=0, max_value=1),
+)
+def test_trivial_bounding2d(x, y):
+    unit_rec = rectangles.unit_rec(2)
+    bounding = refine.bounding_box(unit_rec, lambda p: p[0] >= x or p[1] >= y)
+    assert bounding <= rectangles.to_rec([[0, x+1e-4], [0, y+1e-4]])
+
+    bounding2 = refine.bounding_box(unit_rec, lambda p: p[0] >= x and p[1] >= y)
+    assert bounding2.bot[0] >= x - 1e-4 and bounding2.bot[1] >= y - 1e-4
+
+
 @given(GEN_STAIRCASES)
 def test_staircase_bounding(xys):
     xs, ys = xys
