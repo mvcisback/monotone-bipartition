@@ -37,7 +37,7 @@ def binsearch(r, oracle, eps=EPS, find_lambda=False):
     else:
         result_type = SearchResultType.NON_TRIVIAL
         mid = lo
-        while (f(hi) - f(lo) > eps).any():
+        while hi - lo > eps:
             mid = lo + (hi - lo) / 2
             lo, hi = (lo, mid) if feval(mid) else (mid, hi)
 

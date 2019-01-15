@@ -1,7 +1,7 @@
 import funcy as fn
 import hypothesis.strategies as st
 import numpy as np
-from hypothesis import event, given
+from hypothesis import given
 
 import monotone_bipartition as mdt
 from monotone_bipartition import rectangles
@@ -83,12 +83,12 @@ def test_box_edges(r):
 
 
 def test_refine():
-    tree = rectangles.RecTree(2, lambda p: p[0] >= 0.5)
-    rec = tree.data
+    tree = mdt.from_threshold(lambda p: p[0] >= 0.5, 2).tree
+    rec = tree.view()
     subdivided = tree.children
-    assert min(t.data.volume for t in subdivided) > 0
-    assert max(t.data.volume for t in subdivided) < rec.volume
-    assert all(t.data in rec for t in subdivided)
+    assert min(t.view().volume for t in subdivided) > 0
+    assert max(t.view().volume for t in subdivided) < rec.volume
+    assert all(t.view() in rec for t in subdivided)
 
 
 def _staircase(n):
@@ -125,8 +125,24 @@ def test_staircase_oracle(xys, test_points):
         assert f((a, b)) == any(a >= x and b >= y for x, y in zip(*xys))
 
 
+@given(
+    st.floats(min_value=0, max_value=1),
+    st.floats(min_value=0, max_value=1),
+)
+def test_trivial_bounding2d(x, y):
+    unit_rec = rectangles.unit_rec(2)
+    bounding = refine.bounding_box(unit_rec, lambda p: p[0] >= x or p[1] >= y)
+    assert bounding <= rectangles.to_rec([[0, x+1e-4], [0, y+1e-4]])
+
+    bounding2 = refine.bounding_box(
+        unit_rec,
+        lambda p: p[0] >= x and p[1] >= y
+    )
+    assert bounding2.bot[0] >= x - 1e-4 and bounding2.bot[1] >= y - 1e-4
+
+
 @given(GEN_STAIRCASES)
-def test_staircase_refinement(xys):
+def test_staircase_bounding(xys):
     xs, ys = xys
     f = staircase_oracle(xs, ys)
 
@@ -138,29 +154,3 @@ def test_staircase_refinement(xys):
     assert all(a >= b for a, b in zip(unit_rec.top, bounding.top))
     assert all(a <= b for a, b in zip(unit_rec.bot, bounding.bot))
     np.testing.assert_array_almost_equal(bounding.top, max_xy, decimal=1)
-
-    refiner = refine.volume_guided_refinement((2, f))
-    prev = None
-    # Test properties until refined to fixed point
-    for i, (tagged_rec_set, _) in enumerate(refiner):
-        rec_set = set(r for _, r in tagged_rec_set)
-        # TODO: assert convergence rather than hard coded limit
-        if max(r.volume for r in rec_set) < 1e-1:
-            break
-        assert i <= 2 * len(xs)
-        prev = rec_set
-
-    # TODO: check that the recset contains the staircase
-    # Check that the recset refines the previous one
-    event(f"len {len(rec_set)}")
-    event(f"volume {max(r.volume for r in rec_set)}")
-    if len(rec_set) > 1 and prev is not None:
-        assert all(any(t2 in t1 for t2 in rec_set) for t1 in prev)
-
-        # Check that the recset is not disjoint
-        # TODO
-        # assert all(any(mdt.utils.intersect(r1, r2) for r2 in rec_set - {r1})
-        # for r1 in rec_set)
-
-    # Check that for staircase shape
-    # TODO: rounding to the 1/len(x) should recover xs and ys

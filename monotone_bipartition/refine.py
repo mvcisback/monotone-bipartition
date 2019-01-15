@@ -1,14 +1,9 @@
 """Implements muli-dimensional threshold discovery via binary search."""
-from heapq import heappop as hpop
-from heapq import heappush as hpush
-from heapq import heapify
 from itertools import product
-from operator import itemgetter as ig
 
 import funcy as fn
 import numpy as np
 
-from monotone_bipartition import hausdorff as mdth
 from monotone_bipartition import rectangles as mdtr  # Interval, Rec, to_rec
 from monotone_bipartition import search as mdts  # SearchResultType, binsearch
 
@@ -35,22 +30,27 @@ def box_edges(r):
         yield mdtr.to_rec(intervals=intervals)
 
 
-def bounding_box(r, oracle):
+def bounding_box(domain, oracle, eps=1e-5):
     """Compute Bounding box. TODO: clean up"""
-    recs = list(box_edges(r))
+    # TODO: remove r input and assume unit rec.
+    edges = [mdts.binsearch(r2, oracle, eps=eps) for r2 in box_edges(domain)]
 
-    itvls = [(mdts.binsearch(r2, oracle)[1], tuple(
-        (np.array(r2.top) - np.array(r2.bot) != 0))) for r2 in recs]
-    itvls = fn.group_by(ig(1), itvls)
+    rtypes = fn.pluck(0, edges)
+    if all(t == mdts.SearchResultType.TRIVIALLY_FALSE for t in rtypes):
+        return domain
+    elif all(t == mdts.SearchResultType.TRIVIALLY_TRUE for t in rtypes):
+        return mdtr.to_rec(domain.dim*[[0, 0]])
 
-    def _itvls():
-        for key, vals in itvls.items():
-            idx = key.index(True)
-            top = max(v[0].top[idx] for v in vals)
-            bot = min(v[0].bot[idx] for v in vals)
-            yield bot, top
+    itvls = [r for t, r in edges if t == mdts.SearchResultType.NON_TRIVIAL]
 
-    return mdtr.to_rec(intervals=_itvls())
+    def box_to_include(r):
+        return domain.backward_cone(r.top) & domain.forward_cone(r.bot)
+
+    bbox, *recs = fn.lmap(box_to_include, itvls)
+    for r in recs:
+        bbox = bbox.sup(r)
+
+    return bbox
 
 
 def _midpoint(i):
@@ -75,52 +75,3 @@ def refine(rec, diagsearch, pedantic=False):
             return [mdtr.to_rec(zip(rec.top, rec.top))]
 
     return list(rec.subdivide(rec2, drop_fb=drop_fb))
-
-
-def cost_guided_refinement(n_oracle_or_tree, cost):
-    """Generator for iteratively approximating the oracle's threshold."""
-    if isinstance(n_oracle_or_tree, mdtr.RecTree):
-        tree = n_oracle_or_tree
-    else:
-        tree = mdtr.RecTree(*n_oracle_or_tree)
-
-    queue = [(cost(t), t) for t in tree.children]
-    heapify(queue)
-    while queue:
-        # TODO: when bounding
-        yield [(c, t.data) for c, t in queue], tree
-        _, tree = hpop(queue)
-
-        for t in tree.children:
-            hpush(queue, (cost(t), t))
-
-
-def volume_guided_refinement(n_oracle_or_tree):
-    return cost_guided_refinement(
-        n_oracle_or_tree,
-        cost=lambda t: -t.data.volume
-    )
-
-
-def edge_length_guided_refinement(n_oracle_or_tree):
-    return cost_guided_refinement(
-        n_oracle_or_tree,
-        cost=lambda t: -t.data.shortest_edge
-    )
-
-
-@fn.curry
-def _extract_recset(eps, refiner):
-    refined, _ = fn.first(
-        filter(lambda xs: -xs[0][0][0] <= eps, refiner))
-    return fn.lpluck(1, refined)
-
-
-def hausdorff_bounds(n_oracle_or_tree1, n_oracle_or_tree2, eps=1e-1, k=3):
-    refiner1 = edge_length_guided_refinement(n_oracle_or_tree1)
-    refiner2 = edge_length_guided_refinement(n_oracle_or_tree2)
-
-    while True:
-        recset1, recset2 = map(_extract_recset(eps), (refiner1, refiner2))
-        yield mdth.discretized_and_pointwise_hausdorff(recset1, recset2, k)
-        eps /= 2

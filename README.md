@@ -24,6 +24,17 @@ or
 `python setup.py develop`
 
 # Usage
+
+```python
+import monotone_bipartition as mbp
+
+partition = mbp.from_threshold(
+    func=lambda x: x[0] + x[1] >= 0.5,
+    dim=2,
+)  # type: mbp.BiPartition
+```
+
+- TODO: restrict to closed boundaries.
 - TODO: move to logical lens library
 
 Example notebook used in RV2018 submission: https://gist.github.com/mvcisback/e339530f90a380ad1b36ed4e2291c988
