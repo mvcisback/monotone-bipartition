@@ -83,12 +83,12 @@ def test_box_edges(r):
 
 
 def test_refine():
-    tree = rectangles.RecTree(2, lambda p: p[0] >= 0.5)
-    rec = tree.data
+    tree = mdt.from_threshold(lambda p: p[0] >= 0.5, 2).tree
+    rec = tree.view()
     subdivided = tree.children
-    assert min(t.data.volume for t in subdivided) > 0
-    assert max(t.data.volume for t in subdivided) < rec.volume
-    assert all(t.data in rec for t in subdivided)
+    assert min(t.view().volume for t in subdivided) > 0
+    assert max(t.view().volume for t in subdivided) < rec.volume
+    assert all(t.view() in rec for t in subdivided)
 
 
 def _staircase(n):
@@ -134,7 +134,10 @@ def test_trivial_bounding2d(x, y):
     bounding = refine.bounding_box(unit_rec, lambda p: p[0] >= x or p[1] >= y)
     assert bounding <= rectangles.to_rec([[0, x+1e-4], [0, y+1e-4]])
 
-    bounding2 = refine.bounding_box(unit_rec, lambda p: p[0] >= x and p[1] >= y)
+    bounding2 = refine.bounding_box(
+        unit_rec,
+        lambda p: p[0] >= x and p[1] >= y
+    )
     assert bounding2.bot[0] >= x - 1e-4 and bounding2.bot[1] >= y - 1e-4
 
 
