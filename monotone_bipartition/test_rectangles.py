@@ -1,13 +1,7 @@
-from functools import reduce
-
 import hypothesis.strategies as st
-import numpy as np
-import funcy as fn
 from hypothesis import given
 
 import monotone_bipartition as mbp
-from monotone_bipartition.rectangles import CMP
-from monotone_bipartition.test_refine import GEN_RECS
 
 
 @given(

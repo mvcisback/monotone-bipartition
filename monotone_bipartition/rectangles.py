@@ -13,13 +13,6 @@ top_lens = lens.intervals.Each().top
 intervals_lens = lens.GetAttr('intervals')
 
 
-class CMP(Enum):
-    ForwardCone = 1
-    BackwardCone = 2
-    Inside = 3
-    Incomparable = 4
-
-
 class Interval(NamedTuple):
     bot: float
     top: float
