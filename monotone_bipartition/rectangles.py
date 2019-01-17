@@ -38,6 +38,10 @@ class Interval(NamedTuple):
     def radius(self):
         return self.top - self.bot
 
+    @property
+    def center(self):
+        return self.bot + self.radius/2
+
 
 def _select_rec(intervals, j, lo, hi):
     def include_error(i, k, l, h):
@@ -130,6 +134,14 @@ class Rec(NamedTuple):
     @property
     def shortest_edge(self):
         return min(self.diag)
+
+    @property
+    def corners(self):
+        return frozenset(product(*self.intervals))
+
+    @property
+    def center(self):
+        return tuple(i.center for i in self.intervals)
 
 
 def to_rec(intervals, error=0):

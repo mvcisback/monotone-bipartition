@@ -49,7 +49,7 @@ class BiPartition:
         recs = self.tree.prune(isleaf=not_inside).bfs()
         for rec in recs:
             if above(rec):
-                return True
+                Return True
 
             if not not_inside(rec):
                 if all(x == 0 for x in rec.diag):  # point rec.
