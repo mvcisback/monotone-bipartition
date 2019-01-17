@@ -45,16 +45,7 @@ class Interval(NamedTuple):
     @property
     def radius(self):
         return self.top - self.bot
-
-    def label(self, point):
-        if point < self.bot:
-            return CMP.BackwardCone
-        elif point > self.top:
-            return CMP.ForwardCone
-        elif self.bot <= point <= self.top:
-            return CMP.Inside
-        else:
-            return CMP.Incomparable
+    
 
 
 def _select_rec(intervals, j, lo, hi):
@@ -68,19 +59,6 @@ def _select_rec(intervals, j, lo, hi):
         for k, (l, h, i) in enumerate(zip(lo, hi, intervals)))
     error = max(h - l for h, l in zip(hi, lo))
     return to_rec(chosen_rec, error=error)
-
-
-def _join_itvl_labels(l1, l2):
-    if l1 == l2:
-        return l1
-    elif CMP.Incomparable in (l1, l2):
-        return CMP.Incomparable
-    elif l1 == CMP.Inside:
-        return l2
-    elif l2 == CMP.Inside:
-        return l1
-    else:
-        return CMP.Incomparable
 
 
 class Rec(NamedTuple):
@@ -161,10 +139,6 @@ class Rec(NamedTuple):
     @property
     def shortest_edge(self):
         return min(self.diag)
-
-    def label(self, point):
-        pt_intervals = zip(point, self.intervals)
-        return reduce(_join_itvl_labels, (i.label(p) for p, i in pt_intervals))
 
 
 def to_rec(intervals, error=0):
