@@ -45,7 +45,6 @@ class Interval(NamedTuple):
     @property
     def radius(self):
         return self.top - self.bot
-    
 
 
 def _select_rec(intervals, j, lo, hi):
