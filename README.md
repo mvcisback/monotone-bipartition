@@ -6,11 +6,11 @@
 
 </figure>
 
-[![Build Status](https://travis-ci.org/mvcisback/py-aiger.svg?branch=master)](https://travis-ci.org/mvcisback/py-aiger)
-[![codecov](https://codecov.io/gh/mvcisback/py-aiger/branch/master/graph/badge.svg)](https://codecov.io/gh/mvcisback/py-aiger)
-[![Updates](https://pyup.io/repos/github/mvcisback/py-aiger/shield.svg)](https://pyup.io/repos/github/mvcisback/py-aiger/)
+[![Build Status](https://travis-ci.org/mvcisback/monotone-bipartition.svg?branch=master)](https://travis-ci.org/mvcisback/monotone-bipartition)
+[![codecov](https://codecov.io/gh/mvcisback/monotone-bipartition/branch/master/graph/badge.svg)](https://codecov.io/gh/mvcisback/monotone-bipartition)
+[![Updates](https://pyup.io/repos/github/mvcisback/monotone-bipartition/shield.svg)](https://pyup.io/repos/github/mvcisback/monotone-bipartition/)
 
-[![PyPI version](https://badge.fury.io/py/py-aiger.svg)](https://badge.fury.io/py/py-aiger)
+[![PyPI version](https://badge.fury.io/py/monotone-bipartition.svg)](https://badge.fury.io/py/monotone-bipartition)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 
