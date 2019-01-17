@@ -16,7 +16,7 @@ def test_rec_oracle(k, point):
         return p[1] >= 1 - p[0] + 1 / n
 
     x, y = point
-    if y - 1 + x - 1/n < 0.01:  # Requires too much precision.
+    if abs(y - 1 + x - 1/n) < 0.01:  # Requires too much precision.
         return
 
     part = mbp.from_threshold(oracle, 2)

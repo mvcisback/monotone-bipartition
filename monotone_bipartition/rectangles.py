@@ -3,6 +3,7 @@ from itertools import product
 from functools import reduce
 from typing import Iterable, NamedTuple
 
+import attr
 import numpy as np
 from lenses import lens
 
@@ -12,7 +13,8 @@ top_lens = lens.intervals.Each().top
 intervals_lens = lens.GetAttr('intervals')
 
 
-class Interval(NamedTuple):
+@attr.s(frozen=True, auto_attribs=True)
+class Interval:
     bot: float
     top: float
 
@@ -41,6 +43,9 @@ class Interval(NamedTuple):
     @property
     def center(self):
         return self.bot + self.radius/2
+
+    def __iter__(self):
+        yield from (self.bot, self.top)
 
 
 def _select_rec(intervals, j, lo, hi):
