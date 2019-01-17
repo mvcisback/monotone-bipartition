@@ -2,7 +2,6 @@ import operator as op
 from itertools import product
 from functools import reduce
 from typing import Iterable, NamedTuple
-from enum import Enum
 
 import numpy as np
 from lenses import lens
