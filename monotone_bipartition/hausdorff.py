@@ -58,13 +58,16 @@ def gen_dists(part1, part2, *, prune=True):
     approx1, approx2 = {part1.tree}, {part2.tree}
     new1, new2 = approx1, approx2
     dists = {}
+    prev = mdtr.Interval(-float('inf'), float('inf'))
     while True:
         # Compute dists.
         comparisons = fn.chain(product(new1, approx2), product(approx1, new2))
         dists.extend({(n1, n2): node_dist(n1, n2) for n1, n2 in comparisons})
         n1, n2 = best_worst_case(dists)
-        imin = dists[n1, n2]
+
+        imin, prev = dists[n1, n2], imin
         yield imin   # Best score must lie in the interval.
+        assert prev.bot <= imin.bot <= imin.top <= prev.top
 
         if prune:
             # Prune intervals that can't contribute to min dist.
@@ -78,4 +81,3 @@ def gen_dists(part1, part2, *, prune=True):
         new1, new2 = set(n1.children), set(n2.children)
         approx1 = (approx1 | new1) - {n1}
         approx2 = (approx2 | new2) - {n2}
-        

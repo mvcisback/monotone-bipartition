@@ -25,10 +25,10 @@ class BiPartition:
 
         return list(recs)
 
-    def dist(self, other, tol=1e-4) -> float:
-        # TODO: Implement adaptive version.
-        recset1, recset2 = self.approx(tol/2), other.approx(tol/2)
-        return mbph.discretized_and_pointwise_hausdorff(recset1, recset2)
+    def dist(self, other, tol=1e-4) -> rectangles.Interval:
+        approxes = mpbh.gen_dists(self, other)
+        within_tol = (i for i in approxes if i.radius < tol)
+        return fn.first(within_tol)
 
     def label(self, point) -> bool:
         # TODO: Should support either finite precision or max depth.
