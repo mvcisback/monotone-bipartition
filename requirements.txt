@@ -1,4 +1,4 @@
-funcy==1.9.1
+funcy==1.11
 lazytree==0.2.0
 lenses==0.3.0
 numpy==1.16.0
