@@ -1,5 +1,5 @@
 <figure>
-  <img src="assets/bipartition.png" alt="mbp logo" width=300px>
+  <img src="assets/bipartition.svg" alt="mbp logo" width=300px>
   <figcaption>
      TODO
   </figcaption>
