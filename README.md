@@ -70,7 +70,6 @@ assert not partition1.label((0.3, 0.3))
 ## Comparing partitions
 ```python
 d11 = partition1.dist(partition1, tol=1e-1)  # Returns an Interval
-print(d12.center)  # 0.5726
 assert 0 in d12
 assert d11.radius <= tol
 print(d11.center)  # 0.029
