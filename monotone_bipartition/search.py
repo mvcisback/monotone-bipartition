@@ -32,6 +32,7 @@ def binsearch(r, oracle, eps=EPS, find_lambda=False):
     # Early termination via bounds checks
     if feval(lo):
         result_type = SearchResultType.TRIVIALLY_TRUE
+        hi = 0
     elif not feval(hi):
         result_type = SearchResultType.TRIVIALLY_FALSE
     else:
@@ -49,3 +50,14 @@ def binsearch(r, oracle, eps=EPS, find_lambda=False):
         return result_type, (lo+hi)/2
     else:
         return result_type, mdtr.to_rec(zip(f(lo), f(hi)))
+
+
+def lexicographic_min(func, ordering, tol):
+    pass
+
+
+def line_intersect(func, point, tol):
+    box_intersect = np.array(point) / max(point)
+    origin = [0]*len(point)
+    rec = mdtr.to_rec(zip(origin, box_intersect))  # Compute bounding rec.
+    return binsearch(rec, func, eps=tol)[1]
