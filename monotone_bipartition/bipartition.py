@@ -26,7 +26,7 @@ class BiPartition:
         return list(recs)
 
     def dist(self, other, tol=1e-4) -> rectangles.Interval:
-        approxes = mpbh.gen_dists(self, other)
+        approxes = mbph.gen_dists(self, other)
         within_tol = (i for i in approxes if i.radius < tol)
         return fn.first(within_tol)
 
@@ -49,7 +49,7 @@ class BiPartition:
         recs = self.tree.prune(isleaf=not_inside).bfs()
         for rec in recs:
             if above(rec):
-                Return True
+                return True
 
             if not not_inside(rec):
                 if all(x == 0 for x in rec.diag):  # point rec.

@@ -61,10 +61,6 @@ def _midpoint(i):
 def refine(rec, diagsearch, pedantic=False):
     if rec.is_point:
         return [rec]
-    elif rec.degenerate:
-        # TODO: If degenerate -> Use bounding box algorithm
-        drop_fb = False
-        rec2 = mdtr.to_rec((_midpoint(i) for i in rec.intervals), error=0)
     else:
         drop_fb = True
         result_type, rec2 = diagsearch(rec)
