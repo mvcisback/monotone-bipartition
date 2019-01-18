@@ -72,8 +72,6 @@ def gen_directed_dists(part1, part2):
         imin = dists[n1, n2]
         yield imin   # Best score must lie in the interval.
 
-        # TODO: Prune recs that can't contribute to min dist.
-
         # Refine.
         new1, new2 = set(n1.children), set(n2.children)
         approx1 = (approx1 | new1) - {n1}
