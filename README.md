@@ -1,7 +1,8 @@
+# Monotone Bipartition
 <figure>
   <img src="assets/bipartition.svg" alt="mbp logo" width=300px>
   <figcaption>
-     TODO
+     Compute Monotone Threshold Surfaces and compute distances between surfaces.
   </figcaption>
 
 </figure>
