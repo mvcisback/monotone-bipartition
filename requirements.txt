@@ -1,5 +1,5 @@
 funcy==1.11
-hypothesis==3.32.1
+hypothesis==4.0.1
 lazytree==0.2.0
 lenses==0.3.0
 pytest==3.2.3
