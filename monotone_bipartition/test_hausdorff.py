@@ -1,103 +1,41 @@
-from collections import namedtuple
-from itertools import product
-
 import funcy as fn
-import hypothesis.strategies as st
-import numpy as np
-import pytest
-from hypothesis import event, given, settings
 
 import monotone_bipartition as mbp
+import monotone_bipartition.rectangles as mbpr
 import monotone_bipartition.hausdorff as mdth
-from monotone_bipartition.test_refine import GEN_STAIRCASES, staircase_oracle
 
 
-Point2d = namedtuple("Point2d", ['x', 'y'])
+def test_rec_dist():
+    r1 = mbpr.to_rec([(0, 1), (0.8, 0.8)])
+    r2 = mbpr.to_rec([(0.6, 0.6), (0, 1)])
+    assert 0.8 in mdth.rec_dist(r1, r2)
+    assert mdth.rec_dist(r1, r2).radius < 0.8
 
 
-class Interval(namedtuple("Interval", ['start', 'end'])):
-    def __contains__(self, point):
-        return (self.start.x <= point.x <= self.end.x
-                and self.start.y <= point.y <= self.end.y)
+def test_node_dist():
+    n1 = mbp.from_threshold(lambda x: x[1] >= 0.8, 2).tree
+    n2 = mbp.from_threshold(lambda x: x[0] >= 0.6, 2).tree
+
+    d12 = mdth.node_dist(n1, n2)
+    assert 0.6 in d12
+    assert d12.radius < 0.8
 
 
-def staircase_hausdorff(f1, f2, return_expanded=False):
-    def additional_points(i1, i2):
-        '''Minimal distance points between intvl1 and intvl2.'''
-        xs1, xs2 = {i1.start.x, i1.end.x}, {i2.start.x, i2.end.x}
-        ys1, ys2 = {i1.start.y, i1.end.y}, {i2.start.y, i2.end.y}
-        all_points = [
-            Point2d(x, y)
-            for x, y in fn.chain(product(xs1, ys2), product(xs2, ys1))
-        ]
-        new_f1 = {p for p in all_points if p in i1}
-        new_f2 = {p for p in all_points if p in i2}
-        return new_f1, new_f2
+def test_gen_dist_orth():
+    p1 = mbp.from_threshold(lambda x: x[1] >= 0.8, 2)
+    p2 = mbp.from_threshold(lambda x: x[0] >= 0.6, 2)
 
-    f1_intervals = [Interval(p1, p2) for p1, p2 in zip(f1, f1[1:])]
-    f2_intervals = [Interval(p1, p2) for p1, p2 in zip(f2, f2[1:])]
-    f1_extras, f2_extras = zip(*(additional_points(
-        i1, i2) for i1, i2 in product(f1_intervals, f2_intervals)))
-    F1 = list(set(f1) | set.union(*f1_extras))
-    F2 = list(set(f2) | set.union(*f2_extras))
-    return mdth.pointwise_hausdorff(F1, F2)
+    for d12 in fn.take(10, mdth.gen_directed_dists(p1, p2)):
+        assert d12.bot - 1e-3 <= 0.6 <= d12.top + 1e-3
+
+    for d21 in fn.take(10, mdth.gen_directed_dists(p2, p1)):
+        assert d21.bot - 1e-3 <= 0.8 <= d21.top + 1e-3
+
+    for d in fn.take(10, mdth.gen_dists(p1, p2)):
+        assert d.bot - 1e-3 <= 0.8 <= d.top + 1e-3
 
 
-@given(st.integers(min_value=0, max_value=4), GEN_STAIRCASES, GEN_STAIRCASES)
-def test_staircase_hausdorff(k, xys1, xys2):
-    def discretize(intvl):
-        p1, p2 = intvl
-        xs = np.linspace(p1.x, p2.x, 2 + k)
-        ys = np.linspace(p1.y, p2.y, 2 + k)
-        return [Point2d(x, y) for x, y in product(xs, ys)]
-
-    f1 = [Point2d(x, y) for x, y in zip(*xys1)]
-    f2 = [Point2d(x, y) for x, y in zip(*xys2)]
-
-    f1_hat = set(fn.mapcat(discretize, zip(f1, f1[1:])))
-    f2_hat = set(fn.mapcat(discretize, zip(f2, f2[1:])))
-
-    # Check discretization works as expected
-    assert len(f1_hat) == (len(f1) - 1) * k + len(f1)
-    assert len(f2_hat) == (len(f2) - 1) * k + len(f2)
-
-    # Check extended array has smaller distance
-    d1 = mdth.pointwise_hausdorff(f1_hat, f2_hat)
-    d2 = staircase_hausdorff(f1, f2)
-    event(f"d1, d2={d1, d2}")
-    assert d2 <= d1 or pytest.approx(d1) == d2
-
-
-@settings(max_examples=20)
-@given(GEN_STAIRCASES)
-def test_staircase_hausdorff_bounds_diag2(xys):
-    (xs, ys) = xys
-
-    f = [Point2d(x, y) for x, y in zip(*(xs, ys))]
-    oracle = staircase_oracle(xs, ys)
-    d_true = staircase_hausdorff(f, f)
-    mbpart = mbp.from_threshold(oracle, 2)
-    d = mbpart.dist(mbpart, tol=1e-3)
-
-    assert d.top - d.bot <= 1e-1
-    assert d.bot <= d_true <= d.top
-
-
-@settings(max_examples=20)
-@given(GEN_STAIRCASES, GEN_STAIRCASES)
-def test_staircase_hausdorff_bounds2(xys1, xys2):
-    (xs1, ys1), (xs2, ys2) = xys1, xys2
-
-    f1 = [Point2d(x, y) for x, y in zip(*(xs1, ys1))]
-    f2 = [Point2d(x, y) for x, y in zip(*(xs2, ys2))]
-
-    o1 = staircase_oracle(xs1, ys1)
-    o2 = staircase_oracle(xs2, ys2)
-    d_true = staircase_hausdorff(f1, f2)
-
-    mbpart1 = mbp.from_threshold(o1, 2)
-    mbpart2 = mbp.from_threshold(o2, 2)
-    d = mbpart1.dist(mbpart2, tol=1e-3)
-
-    assert d.top - d.bot <= 1e-1
-    assert d.bot <= d_true <= d.top
+def test_line_diag_hausdorff(dim=2):
+    mbpart = mbp.from_threshold(lambda x: sum(x) >= 0.2, dim)
+    d = mbpart.dist(mbpart, tol=1e-1)
+    assert d.top <= 1e-1
