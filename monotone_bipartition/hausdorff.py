@@ -58,6 +58,7 @@ def best_worst_case(approx1, approx2, adj_mat):
 
 def gen_directed_dists(part1, part2):
     """Generator for directed hausdorff distances."""
+    # TODO: remimplement using sortedcontainers
     approx1, approx2 = {part1.tree}, {part2.tree}
     new1, new2 = approx1, approx2
     dists = {}
