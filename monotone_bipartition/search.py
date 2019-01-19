@@ -4,6 +4,7 @@ import funcy as fn
 import numpy as np
 
 from monotone_bipartition import rectangles as mdtr
+from monotone_bipartition import refine
 
 EPS = 1e-2
 
@@ -52,24 +53,36 @@ def binsearch(r, oracle, eps=EPS, find_lambda=False):
         return result_type, mdtr.to_rec(zip(f(lo), f(hi)))
 
 
-def lexicographic_opt(func, ordering, tol):
-    tol /= len(ordering)  # Need to compensate for multiple binsearches.
-    
-    base = (0, 0)
-    for idx, polarity in ordering:
-        # TODO: need to reflect rectangle is polarity is True.
-        oracle = func
-        rec = mdtr.to_rec(
-            (0, 1) if i == idx else (p, p) for i, p in enumerate(base)
-        )
-        res_rec = binsearch(rec, oracle, eps=tol)[1]
-        base = res_rec.bot
-
-    return res_rec
-
-
 def line_intersect(func, point, tol):
     box_intersect = np.array(point) / max(point)
     origin = [0]*len(point)
     rec = mdtr.to_rec(zip(origin, box_intersect))  # Compute bounding rec.
     return binsearch(rec, func, eps=tol)[1]
+
+
+def lexicographic_opt(func, ordering, tol):
+    dim = len(ordering)
+    assert set(fn.pluck(0, ordering)) == set(range(dim))
+    tol /= dim  # Need to compensate for multiple binsearches.
+
+    rec = refine.bounding_box(
+        domain=mdtr.unit_rec(dim),
+        oracle=func
+    )
+    # If polarity is True, set initial value at bounding.top.
+    # O.w. use bounding.bot.
+    base = tuple((rec.top if p else rec.bot)[i] for i, p in sorted(ordering))
+
+    res_rec = mdtr.to_rec(zip(base, base))
+    for idx, polarity in ordering:
+        oracle = func
+        rec = mdtr.to_rec(
+            (0, 1) if i == idx else (p, p) for i, p in enumerate(base)
+        )
+        result_type, res_cand = binsearch(rec, oracle, eps=tol)
+
+        if result_type == SearchResultType.NON_TRIVIAL:
+            res_rec = res_cand
+            base = res_rec.bot
+
+    return res_rec

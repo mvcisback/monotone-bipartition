@@ -80,7 +80,7 @@ class BiPartition:
         then minimizing along axis 0.
         """
         if lexicographic:
-            return mdts.lexicographic_min(self.func, point_or_ordering, tol)
+            return mdts.lexicographic_opt(self.func, point_or_ordering, tol)
         else:
             return mdts.line_intersect(self.func, point_or_ordering, tol)
 

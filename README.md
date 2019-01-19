@@ -68,6 +68,9 @@ assert not partition1.label((0.3, 0.3))
 ```
 
 ## Comparing partitions
+It is often useful to compare boundaries. (See
+https://github.com/mvcisback/LogicalLens for a usecase).
+
 ```python
 d11 = partition1.dist(partition1, tol=1e-1)  # Returns an Interval
 assert 0 in d12
@@ -88,4 +91,35 @@ print(d12.center)  # 0.5726
 partition3 = mbp.from_threshold(func=lambda x: x[1] >= 0.7, dim=2)
 assert partition3 >= partition2
 assert not (partition1 >= partition3)  # Incomparable since they intersect.
+```
+
+## Find particular points on the boundary
+Sometimes, it is useful to find particular points on the threshold
+boundary. For example, the following two works leverage such
+"projections" to learn classifiers for the data that induces the
+partitions. (Again, see https://github.com/mvcisback/LogicalLens).
+
+- [Vazquez-Chanlatte, Marcell, et al."Time Series Learning using Monotonic Logical Properties.", International Conference on Runtime Verification, RV, 2018](https://mjvc.me/papers/rv2018_logical_ts_learning.pdf)
+
+- [Vazquez-Chanlatte, Marcell, et al. "Logical Clustering and Learning for Time-Series Data." International Conference on Computer Aided Verification. Springer, Cham, 2017.](https://mjvc.me/papers/cav2017.pdf)
+
+```python
+# Find the point that intersects the line running
+# between the origin and (0.2, 0.2).
+rec = partition1.project((0.2, 0.2))  # Approximation of intersection point.
+assert rec.shortest_edge < 1e-3
+x = rec.center  # Can use the center of the rectangle as the projected point.
+
+## This value is approx (0.5, 0.5)
+assert abs(max(x[0] - 0.5, x[1] - 0.5)) < 1e-3
+
+# Find the point that lexicographically maximizes the 0-axis
+# and then miniminizes the 1-axis.
+order = [(1, True), (0, False)]  # List of axis index and should_max tuples.
+rec = partition1.project(order, lexicographic=True)
+assert rec.shortest_edge < 1e-3
+x = rec.center  # Can use the center of the rectangle as the projected point.
+
+## This value is approx (0.5, 1)
+assert abs(max(x[0] - 0.5, x[1] - 1)) < 1e-3
 ```
