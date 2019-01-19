@@ -64,7 +64,8 @@ class BiPartition:
     def __le__(self, other):
         raise NotImplementedError
 
-    def project(self, point_or_ordering, *, lexicographic=False, tol=1e-4):
+    def project(self, point_or_ordering, *,
+                lexicographic=False, tol=1e-4, percent=False):
         """
         If lexicographic is False, then returns an approximation
         to the *unique* point that intersect the threshold
@@ -80,9 +81,11 @@ class BiPartition:
         then minimizing along axis 0.
         """
         if lexicographic:
+            assert not percent
             return mdts.lexicographic_opt(self.func, point_or_ordering, tol)
         else:
-            return mdts.line_intersect(self.func, point_or_ordering, tol)
+            return mdts.line_intersect(
+                self.func, point_or_ordering, tol, percent=percent)
 
 
 def from_threshold(func, dim: int, *, memoize_nodes=True) -> BiPartition:

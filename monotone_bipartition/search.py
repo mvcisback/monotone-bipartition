@@ -53,11 +53,11 @@ def binsearch(r, oracle, eps=EPS, find_lambda=False):
         return result_type, mdtr.to_rec(zip(f(lo), f(hi)))
 
 
-def line_intersect(func, point, tol):
+def line_intersect(func, point, tol, *, percent=False):
     box_intersect = np.array(point) / max(point)
     origin = [0]*len(point)
     rec = mdtr.to_rec(zip(origin, box_intersect))  # Compute bounding rec.
-    return binsearch(rec, func, eps=tol)[1]
+    return binsearch(rec, func, eps=tol, find_lambda=percent)[1]
 
 
 def lexicographic_opt(func, ordering, tol):
