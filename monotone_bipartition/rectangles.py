@@ -91,7 +91,7 @@ class Rec(NamedTuple):
 
     @property
     def is_point(r):
-        return max(x for x in r.diag) < 1e-3
+        return max(x for x in r.diag) == 0
 
     def forward_cone(self, p):
         """Computes the forward cone from point p."""
