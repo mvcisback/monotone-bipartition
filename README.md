@@ -4,6 +4,7 @@
 
 [![PyPI version](https://badge.fury.io/py/monotone-bipartition.svg)](https://badge.fury.io/py/monotone-bipartition)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![DOI](https://zenodo.org/badge/64908994.svg)](https://zenodo.org/badge/latestdoi/64908994)
 
 # Monotone Bipartitions
 
