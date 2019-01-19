@@ -52,7 +52,7 @@ def binsearch(r, oracle, eps=EPS, find_lambda=False):
         return result_type, mdtr.to_rec(zip(f(lo), f(hi)))
 
 
-def lexicographic_min(func, ordering, tol):
+def lexicographic_opt(func, ordering, tol):
     pass
 
 

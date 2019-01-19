@@ -71,9 +71,13 @@ class BiPartition:
         boundary AND the line intersecting the origin and the
         user defined point.
 
-        If lexicographic is True, then returns an approximation
-        to the minimum point on the threshold boundary
-        that is minimum in the ordering prodived.
+        If lexicographic is True, then returns an approximation to the
+        minimum point on the threshold boundary that is minimum in the
+        ordering provided. The ordering is given as a list of pairs:
+        `(index, minimize)`. The index is minimized if `minimize` is
+        true, and maximized otherwise. For example, `[(1, False), (0,
+        True)]` encodes maximizing along axis 1 of the unit box and
+        then minimizing along axis 0.
         """
         if lexicographic:
             return mdts.lexicographic_min(self.func, point_or_ordering, tol)
