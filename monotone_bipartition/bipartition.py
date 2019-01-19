@@ -1,4 +1,4 @@
-from functools import partial
+from functools import partial, total_ordering
 
 import attr
 import funcy as fn
@@ -11,8 +11,10 @@ from monotone_bipartition import search as mdts  # binsearch
 
 
 @attr.s
+@total_ordering
 class BiPartition:
     tree: LazyTree = attr.ib()
+    func = attr.ib()
 
     @property
     def dim(self):
@@ -59,6 +61,32 @@ class BiPartition:
 
         raise RuntimeError("Point outside domain?!?!?!")
 
+    def __le__(self, other):
+        raise NotImplementedError
+
+    def project(self, point_or_ordering, *,
+                lexicographic=False, tol=1e-4, percent=False):
+        """
+        If lexicographic is False, then returns an approximation
+        to the *unique* point that intersect the threshold
+        boundary AND the line intersecting the origin and the
+        user defined point.
+
+        If lexicographic is True, then returns an approximation to the
+        minimum point on the threshold boundary that is minimum in the
+        ordering provided. The ordering is given as a list of pairs:
+        `(index, minimize)`. The index is minimized if `minimize` is
+        true, and maximized otherwise. For example, `[(1, False), (0,
+        True)]` encodes maximizing along axis 1 of the unit box and
+        then minimizing along axis 0.
+        """
+        if lexicographic:
+            assert not percent
+            return mdts.lexicographic_opt(self.func, point_or_ordering, tol)
+        else:
+            return mdts.line_intersect(
+                self.func, point_or_ordering, tol, percent=percent)
+
 
 def from_threshold(func, dim: int, *, memoize_nodes=True) -> BiPartition:
     bounding_box = mbpr.bounding_box(rectangles.unit_rec(dim), func)
@@ -67,4 +95,4 @@ def from_threshold(func, dim: int, *, memoize_nodes=True) -> BiPartition:
     if memoize_nodes:
         refine = fn.memoize()(refine)
 
-    return BiPartition(LazyTree(root=bounding_box, child_map=refine))
+    return BiPartition(LazyTree(root=bounding_box, child_map=refine), func)

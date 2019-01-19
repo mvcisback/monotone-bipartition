@@ -73,9 +73,13 @@ def gen_directed_dists(part1, part2):
         yield imin   # Best score must lie in the interval.
 
         # Refine.
-        new1, new2 = set(n1.children), set(n2.children)
-        approx1 = (approx1 | new1) - {n1}
-        approx2 = (approx2 | new2) - {n2}
+        if not n1.view().is_point:
+            new1 = set(n1.children)
+            approx1 = (approx1 | new1) - {n1}
+
+        if not n2.view().is_point:
+            new2 = set(n2.children)
+            approx2 = (approx2 | new2) - {n2}
 
 
 def gen_dists(part1, part2):

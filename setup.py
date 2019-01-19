@@ -3,7 +3,7 @@ from setuptools import find_packages, setup
 
 setup(
     name='monotone-bipartition',
-    version='0.0.0',
+    version='0.1.1',
     description='Compute Monotone Threshold Surfaces and'
     'compute distances between surfaces.',
     url='http://github.com/mvcisback/monotone-bipartition',
@@ -11,6 +11,7 @@ setup(
     author_email='marcell.vc@eecs.berkeley.edu',
     license='MIT',
     install_requires=[
+        'attrs',
         'funcy',
         'lazytree',
         'lenses',
