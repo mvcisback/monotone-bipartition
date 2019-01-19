@@ -1,3 +1,4 @@
+attrs==18.2.0
 funcy==1.11
 lazytree==0.2.0
 lenses==0.5.0

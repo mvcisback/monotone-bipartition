@@ -11,6 +11,7 @@ setup(
     author_email='marcell.vc@eecs.berkeley.edu',
     license='MIT',
     install_requires=[
+        'attrs',
         'funcy',
         'lazytree',
         'lenses',

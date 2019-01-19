@@ -53,7 +53,19 @@ def binsearch(r, oracle, eps=EPS, find_lambda=False):
 
 
 def lexicographic_opt(func, ordering, tol):
-    pass
+    tol /= len(ordering)  # Need to compensate for multiple binsearches.
+    
+    base = (0, 0)
+    for idx, polarity in ordering:
+        # TODO: need to reflect rectangle is polarity is True.
+        oracle = func
+        rec = mdtr.to_rec(
+            (0, 1) if i == idx else (p, p) for i, p in enumerate(base)
+        )
+        res_rec = binsearch(rec, oracle, eps=tol)[1]
+        base = res_rec.bot
+
+    return res_rec
 
 
 def line_intersect(func, point, tol):
