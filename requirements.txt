@@ -1,5 +1,5 @@
 attrs==19.3.0
-funcy==1.12
+funcy==1.14
 lazytree==0.2.0
 lenses==0.5.0
 pytest==4.5.0
