@@ -4,7 +4,7 @@ lazytree==0.3.1
 lenses==0.5.0
 pytest==5.4.1
 pytest-cov==2.8.1
-pytest-flake8==1.0.4
+pytest-flake8==1.0.5
 pytest-sugar==0.9.2
 pytest-xdist==1.28.0
 hypothesis==4.24.0
