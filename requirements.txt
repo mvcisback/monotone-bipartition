@@ -1,6 +1,6 @@
 attrs==19.3.0
 funcy==1.14
-lazytree==0.2.0
+lazytree==0.3.1
 lenses==0.5.0
 pytest==4.5.0
 pytest-cov==2.7.1
