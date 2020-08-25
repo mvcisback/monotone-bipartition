@@ -6,7 +6,7 @@ import numpy as np
 from monotone_bipartition import rectangles as mdtr
 from monotone_bipartition import refine
 
-EPS = 1e-2
+EPS = 1e-4
 
 
 class SearchResultType(Enum):

@@ -30,10 +30,10 @@ def box_edges(r):
         yield mdtr.to_rec(intervals=intervals)
 
 
-def bounding_box(domain, oracle, eps=1e-5):
+def bounding_box(domain, oracle, find_intersect=mdts.binsearch):
     """Compute Bounding box. TODO: clean up"""
     # TODO: remove r input and assume unit rec.
-    edges = [mdts.binsearch(r2, oracle, eps=eps) for r2 in box_edges(domain)]
+    edges = [find_intersect(r2, oracle) for r2 in box_edges(domain)]
 
     rtypes = fn.pluck(0, edges)
     if all(t == mdts.SearchResultType.TRIVIALLY_FALSE for t in rtypes):
