@@ -124,3 +124,36 @@ x = rec.center  # Can use the center of the rectangle as the projected point.
 ## This value is approx (0.5, 1)
 assert abs(max(x[0] - 0.5, x[1] - 1)) < 1e-3
 ```
+
+## Intersection Strategy
+
+By default, the `find_threshold` function uses a binary search along
+the diagonal (with a fixed relative tolerance) to find asub-division
+point. This can be overridden using the `find_intersect` argument. For
+example, below we change the binary search tolerance to `1e-2`.
+
+```python
+from typing import Tuple
+
+from monotone_bipartition.rectangles import Rec
+from monotone_bipartition.search import binsearch, SearchResultType
+
+
+def find_intersect(domain: Rec, oracle) -> Tuple[SearchResultType, Rec]:
+    """Returns a rectangle within the domain containing the boundary.
+    
+    This rectangle will be used to update the boundary approximation
+    during subdivision.
+    """
+    # eps is the relative tolerance.
+    result_type, rec = binsearch(rec, oracle, eps=1e-2)
+    return result_type, rec
+
+
+partition1 = mbp.from_threshold(
+    func=lambda x: x[0] >= 0.5,
+    dim=2,
+    find_intersect=find_intersect,
+)  # type: mbp.BiPartition
+
+```
