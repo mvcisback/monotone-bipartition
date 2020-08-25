@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "monotone-bipartition"
+version = "0.2.1"
+description = "Compute Monotone Threshold Surfaces and compute distances between surfaces."
+authors = ["Marcell Vazquez-Chanlatte <mvc@linux.com>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.6"
+
+attrs="^19.3.0"
+funcy = "^1.14"
+lazytree = "^0.3.1"
+lenses = "^1.0.0"
+numpy = "^1.19.1"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.0.1"
+pytest-flake8 = "^1.0.6"
+hypothesis = "^5.29.0"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
