@@ -28,17 +28,16 @@ in [Learning Monotone Partitions of Partially-Ordered
 Domains](https://hal.archives-ouvertes.fr/hal-01556243/).
 
 # Installation
-Note, this project requires python 3.6+
+If you just need to use `monotone-partition`, you can just run:
 
-`pip install monotone-bipartition`
+`$ pip install monotone-bipartition`
 
-or
+For developers, note that this project uses the
+[poetry](https://poetry.eustace.io/) python package/dependency
+management tool. Please familarize yourself with it and then
+run:
 
-`pip install -r requirements.txt`
-
-or
-
-`python setup.py develop`
+`$ poetry install`
 
 # Usage
 
