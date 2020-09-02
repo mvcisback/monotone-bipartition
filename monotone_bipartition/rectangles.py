@@ -49,7 +49,7 @@ class Interval:
 
 
 def _select_rec(intervals, j, lo, hi):
-    def include_error(i, k, l, h):
+    def include_error(i, k, l, h):  # noqa: E741
         idx = (j >> k) & 1
         l2, h2 = i[idx]
         return min(l2, l), max(h, h2)

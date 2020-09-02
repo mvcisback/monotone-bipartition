@@ -88,11 +88,11 @@ class BiPartition:
                 self.func, point_or_ordering, tol, percent=percent)
 
 
-def from_threshold(func, dim: int, *, memoize_nodes=True, 
+def from_threshold(func, dim: int, *, memoize_nodes=True,
                    find_intersect=mdts.binsearch) -> BiPartition:
 
     bounding_box = mbpr.bounding_box(
-        oracle=func, 
+        oracle=func,
         domain=rectangles.unit_rec(dim),
         find_intersect=find_intersect
     )
