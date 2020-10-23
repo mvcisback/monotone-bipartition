@@ -145,7 +145,7 @@ def find_intersect(domain: Rec, oracle) -> Tuple[SearchResultType, Rec]:
     during subdivision.
     """
     # eps is the relative tolerance.
-    result_type, rec = binsearch(rec, oracle, eps=1e-2)
+    result_type, rec = binsearch(domain, oracle, eps=1e-2)
     return result_type, rec
 
 
